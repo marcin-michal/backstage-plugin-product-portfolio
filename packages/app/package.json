@@ -28,7 +28,7 @@
     "@backstage/plugin-catalog-graph": "^0.6.5",
     "@backstage/plugin-catalog-import": "^0.13.14",
     "@backstage/plugin-kubernetes": "^0.12.20",
-    "@backstage/plugin-notifications": "^0.5.18",
+    "@backstage/plugin-notifications": "^0.5.19",
     "@backstage/plugin-org": "^0.7.5",
     "@backstage/plugin-scaffolder": "^1.38.0",
     "@backstage/plugin-search": "^1.7.5",

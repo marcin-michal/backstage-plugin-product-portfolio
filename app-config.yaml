@@ -150,3 +150,19 @@ permission:
 mcpActions:
   name: 'My Company Backstage' # defaults to "backstage"
   description: 'Tools for managing your software catalog, creating new services from templates, and exploring your developer portal' # optional
+
+notifications:
+  retention: 1y
+  processors:
+    email:
+      # PoC: stream transport logs email content to the console and sends nothing
+      transportConfig:
+        transport: stream
+      sender: noreply@redhat.com
+
+ldapNotifications:
+  dryRun: true # only log; do not call notificationService.send
+  schedule:
+    frequency: { hours: 6 }
+    timeout: { minutes: 5 }
+    initialDelay: { seconds: 30 }

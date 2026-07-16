@@ -61,6 +61,7 @@ backend.add(import('@backstage/plugin-kubernetes-backend'));
 
 // notifications and signals plugins
 backend.add(import('@backstage/plugin-notifications-backend'));
+backend.add(import('@backstage/plugin-notifications-backend-module-email'));
 backend.add(import('@backstage/plugin-signals-backend'));
 
 // mcp actions plugin
@@ -68,4 +69,5 @@ backend.add(import('@backstage/plugin-mcp-actions-backend'));
 
 backend.add(import('@internal/backstage-plugin-catalog-backend-module-pyxis-provider'));
 backend.add(import('@internal/backstage-plugin-catalog-backend-module-ldap-user-validation'));
+backend.add(import('@internal/backstage-plugin-backend-module-ldap-notifications'));
 backend.start();
