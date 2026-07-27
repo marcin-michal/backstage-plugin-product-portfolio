@@ -9,11 +9,32 @@ export interface PyxisProductListing {
     team_id: string | null;
     functional_categories: string[] | null;
     descriptions: {
-      short: string | null;
-      long: string | null;
+        short: string | null;
+        long: string | null;
     } | null;
     creation_date: string;
     last_update_date: string;
+    repositories: string[] | null;
+}
+
+export interface PyxisContainerRepository {
+    _id: string;
+    application_categories: string[];
+    build_categories: string[];
+    display_data: {
+        name: string;
+        long_description: string;
+        short_description: string;
+    };
+    published: boolean;
+    registry: string;
+    release_categories: string[];
+    repository: string;
+    architectures: string[] | null;
+    creation_date: string;
+    last_update_date: string;
+    team_id: string;
+    product_listings: string[] | null;
 }
 
 export interface PyxisTeamMember {
@@ -32,6 +53,7 @@ export interface PyxisTeam {
 }
 
 export interface PyxisProviderConfig {
+    url: string;
     graphqlUrl: string;
     certPath: string;
     keyPath: string;

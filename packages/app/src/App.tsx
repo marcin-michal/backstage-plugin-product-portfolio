@@ -3,5 +3,5 @@ import catalogPlugin from '@backstage/plugin-catalog/alpha';
 import { navModule } from './modules/nav';
 
 export default createApp({
-  features: [catalogPlugin, navModule],
+    features: [catalogPlugin, navModule],
 });

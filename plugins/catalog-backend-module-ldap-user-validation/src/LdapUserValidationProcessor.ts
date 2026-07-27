@@ -80,7 +80,7 @@ export class LdapUserValidationProcessor implements CatalogProcessor {
                 if (entity.spec && typeof entity.spec === 'object') {
                     const spec = entity.spec as Record<string, unknown>;
                     spec.profile = {
-                        ...(spec.profile as Record<string, unknown> || {}),
+                        ...((spec.profile as Record<string, unknown>) || {}),
                         displayName: userInfo.cn || userInfo.uid,
                         email: userInfo.email,
                     };
@@ -89,7 +89,7 @@ export class LdapUserValidationProcessor implements CatalogProcessor {
         } catch (err) {
             this.logger.warn(
                 `LDAP lookup failed for ${rhatUUID}: ${err}. ` +
-                `Skipping validation`,
+                    `Skipping validation`,
             );
         }
 
@@ -105,7 +105,13 @@ export class LdapUserValidationProcessor implements CatalogProcessor {
             const { searchEntries } = await client.search(this.ldapUserBase, {
                 scope: 'sub',
                 filter: `(rhatUUID=${rhatUUID})`,
-                attributes: ['uid', 'cn', 'rhatUUID', 'rhatPrimaryMail', 'mail'],
+                attributes: [
+                    'uid',
+                    'cn',
+                    'rhatUUID',
+                    'rhatPrimaryMail',
+                    'mail',
+                ],
                 sizeLimit: 1,
             });
 

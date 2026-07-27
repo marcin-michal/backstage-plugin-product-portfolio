@@ -16,15 +16,17 @@ export const catalogModuleLdapUserValidation = createBackendModule({
                 rootConfig: coreServices.rootConfig,
             },
             async init({ catalog, logger, rootConfig }) {
-                const ldapUrl = rootConfig.getOptionalString('pyxis.ldap.url')
-                    ?? 'ldap://ldap.corp.redhat.com';
-                const ldapUserBase = rootConfig.getOptionalString('pyxis.ldap.userBase')
-                    ?? 'ou=users,dc=redhat,dc=com';
+                const ldapUrl =
+                    rootConfig.getOptionalString('pyxis.ldap.url') ??
+                    'ldap://ldap.corp.redhat.com';
+                const ldapUserBase =
+                    rootConfig.getOptionalString('pyxis.ldap.userBase') ??
+                    'ou=users,dc=redhat,dc=com';
 
                 catalog.addProcessor(
                     new LdapUserValidationProcessor(
-                    { ldapUrl, ldapUserBase },
-                    logger,
+                        { ldapUrl, ldapUserBase },
+                        logger,
                     ),
                 );
 

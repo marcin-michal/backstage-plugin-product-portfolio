@@ -25,6 +25,7 @@ export const catalogModulePyxisProvider = createBackendModule({
                 });
 
                 const providerConfig = {
+                    url: config.getString('url'),
                     graphqlUrl: config.getString('graphqlUrl'),
                     certPath: config.getString('certPath'),
                     keyPath: config.getString('keyPath'),

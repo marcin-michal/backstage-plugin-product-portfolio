@@ -1,41 +1,41 @@
 {
-  "name": "@internal/backstage-plugin-catalog-backend-module-ldap-user-validation",
-  "version": "0.1.0",
-  "license": "UNLICENSED",
-  "private": true,
-  "description": "The ldap-user-validation backend module for the catalog plugin.",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
-  "publishConfig": {
-    "access": "public",
-    "main": "dist/index.cjs.js",
-    "types": "dist/index.d.ts"
-  },
-  "backstage": {
-    "role": "backend-plugin-module",
-    "pluginId": "catalog",
-    "pluginPackage": "@backstage/plugin-catalog-backend"
-  },
-  "scripts": {
-    "start": "backstage-cli package start",
-    "build": "backstage-cli package build",
-    "lint": "backstage-cli package lint",
-    "test": "backstage-cli package test",
-    "clean": "backstage-cli package clean",
-    "prepack": "backstage-cli package prepack",
-    "postpack": "backstage-cli package postpack"
-  },
-  "dependencies": {
-    "@backstage/backend-plugin-api": "^1.9.2",
-    "@backstage/catalog-model": "^1.9.0",
-    "@backstage/plugin-catalog-node": "^2.2.2",
-    "ldapts": "^8.1.8"
-  },
-  "devDependencies": {
-    "@backstage/backend-test-utils": "^1.11.4",
-    "@backstage/cli": "^0.36.3"
-  },
-  "files": [
-    "dist"
-  ]
+    "name": "@internal/backstage-plugin-catalog-backend-module-ldap-user-validation",
+    "version": "0.1.0",
+    "license": "UNLICENSED",
+    "private": true,
+    "description": "The ldap-user-validation backend module for the catalog plugin.",
+    "main": "src/index.ts",
+    "types": "src/index.ts",
+    "publishConfig": {
+        "access": "public",
+        "main": "dist/index.cjs.js",
+        "types": "dist/index.d.ts"
+    },
+    "backstage": {
+        "role": "backend-plugin-module",
+        "pluginId": "catalog",
+        "pluginPackage": "@backstage/plugin-catalog-backend"
+    },
+    "scripts": {
+        "start": "backstage-cli package start",
+        "build": "backstage-cli package build",
+        "lint": "backstage-cli package lint",
+        "test": "backstage-cli package test",
+        "clean": "backstage-cli package clean",
+        "prepack": "backstage-cli package prepack",
+        "postpack": "backstage-cli package postpack"
+    },
+    "dependencies": {
+        "@backstage/backend-plugin-api": "^1.9.2",
+        "@backstage/catalog-model": "^1.9.0",
+        "@backstage/plugin-catalog-node": "^2.2.2",
+        "ldapts": "^8.1.8"
+    },
+    "devDependencies": {
+        "@backstage/backend-test-utils": "^1.11.4",
+        "@backstage/cli": "^0.36.3"
+    },
+    "files": [
+        "dist"
+    ]
 }
