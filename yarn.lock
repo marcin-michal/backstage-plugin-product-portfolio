@@ -2592,7 +2592,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@backstage/errors@npm:^1.3.1":
+"@backstage/errors@npm:^1.2.7, @backstage/errors@npm:^1.3.1":
   version: 1.3.1
   resolution: "@backstage/errors@npm:1.3.1"
   dependencies:
@@ -5825,6 +5825,36 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@internal/backstage-plugin-konflux-backend@workspace:^, @internal/backstage-plugin-konflux-backend@workspace:plugins/konflux-backend":
+  version: 0.0.0-use.local
+  resolution: "@internal/backstage-plugin-konflux-backend@workspace:plugins/konflux-backend"
+  dependencies:
+    "@backstage/backend-plugin-api": "npm:^1.9.2"
+    "@backstage/cli": "npm:^0.36.3"
+    "@backstage/config": "npm:^1.3.8"
+    "@backstage/errors": "npm:^1.2.7"
+    "@internal/backstage-plugin-konflux-common": "workspace:^"
+    "@kubernetes/client-node": "npm:^1.4.0"
+    "@types/express": "npm:^4.17.21"
+    "@types/lodash": "npm:^4.14.175"
+    express: "npm:^4.17.1"
+    express-promise-router: "npm:^4.1.0"
+    lodash: "npm:^4.17.21"
+  languageName: unknown
+  linkType: soft
+
+"@internal/backstage-plugin-konflux-common@workspace:^, @internal/backstage-plugin-konflux-common@workspace:plugins/konflux-common":
+  version: 0.0.0-use.local
+  resolution: "@internal/backstage-plugin-konflux-common@workspace:plugins/konflux-common"
+  dependencies:
+    "@backstage/catalog-model": "npm:^1.9.0"
+    "@backstage/cli": "npm:^0.36.3"
+    "@backstage/config": "npm:^1.3.8"
+    "@types/js-yaml": "npm:^4.0.1"
+    js-yaml: "npm:^4.1.0"
+  languageName: unknown
+  linkType: soft
+
 "@internationalized/date@npm:^3.12.0, @internationalized/date@npm:^3.12.1, @internationalized/date@npm:^3.12.2":
   version: 3.12.2
   resolution: "@internationalized/date@npm:3.12.2"
@@ -6776,7 +6806,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@kubernetes/client-node@npm:1.4.0":
+"@kubernetes/client-node@npm:1.4.0, @kubernetes/client-node@npm:^1.4.0":
   version: 1.4.0
   resolution: "@kubernetes/client-node@npm:1.4.0"
   dependencies:
@@ -11758,6 +11788,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/lodash@npm:^4.14.175":
+  version: 4.17.24
+  resolution: "@types/lodash@npm:4.17.24"
+  checksum: 10c0/b72f60d4daacdad1fa643edb3faba204c02a01eb1ac00a83ff73496a6d236fc55e459c06106e8ced42277dba932d087d8fc090f8de4ef590d3f91e6d6f7ce85a
+  languageName: node
+  linkType: hard
+
 "@types/long@npm:^4.0.0":
   version: 4.0.2
   resolution: "@types/long@npm:4.0.2"
@@ -13282,6 +13319,7 @@ __metadata:
     "@backstage/plugin-catalog": "npm:^2.0.6"
     "@backstage/plugin-catalog-graph": "npm:^0.6.5"
     "@backstage/plugin-catalog-import": "npm:^0.13.14"
+    "@backstage/plugin-catalog-react": "npm:^3.1.0"
     "@backstage/plugin-kubernetes": "npm:^0.12.20"
     "@backstage/plugin-notifications": "npm:^0.5.19"
     "@backstage/plugin-org": "npm:^0.7.5"
@@ -13292,8 +13330,10 @@ __metadata:
     "@backstage/plugin-techdocs-module-addons-contrib": "npm:^1.1.37"
     "@backstage/plugin-user-settings": "npm:^0.9.4"
     "@backstage/ui": "npm:^0.16.0"
+    "@internal/backstage-plugin-konflux-common": "workspace:^"
     "@material-ui/core": "npm:^4.12.2"
     "@material-ui/icons": "npm:^4.9.1"
+    "@material-ui/lab": "npm:4.0.0-alpha.61"
     "@playwright/test": "npm:^1.32.3"
     "@testing-library/dom": "npm:^9.0.0"
     "@testing-library/jest-dom": "npm:^6.0.0"
@@ -13922,6 +13962,7 @@ __metadata:
     "@internal/backstage-plugin-backend-module-ldap-notifications": "workspace:^"
     "@internal/backstage-plugin-catalog-backend-module-ldap-user-validation": "workspace:^"
     "@internal/backstage-plugin-catalog-backend-module-pyxis-provider": "workspace:^"
+    "@internal/backstage-plugin-konflux-backend": "workspace:^"
     app: "link:../app"
     better-sqlite3: "npm:^12.0.0"
     node-gyp: "npm:^10.0.0"
@@ -18000,7 +18041,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"express@npm:^4.14.0, express@npm:^4.22.0, express@npm:^4.22.1":
+"express@npm:^4.14.0, express@npm:^4.17.1, express@npm:^4.22.0, express@npm:^4.22.1":
   version: 4.22.2
   resolution: "express@npm:4.22.2"
   dependencies:

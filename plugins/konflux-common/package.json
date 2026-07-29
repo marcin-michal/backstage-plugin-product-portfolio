@@ -1,0 +1,43 @@
+{
+    "name": "@internal/backstage-plugin-konflux-common",
+    "version": "0.1.0",
+    "license": "UNLICENSED",
+    "private": true,
+    "description": "Shared types and models for the Konflux plugin",
+    "main": "src/index.ts",
+    "types": "src/index.ts",
+    "publishConfig": {
+        "access": "public",
+        "main": "dist/index.cjs.js",
+        "module": "dist/index.esm.js",
+        "types": "dist/index.d.ts"
+    },
+    "backstage": {
+        "role": "common-library",
+        "pluginId": "konflux-common",
+        "pluginPackages": [
+            "@internal/backstage-plugin-konflux-common"
+        ]
+    },
+    "sideEffects": false,
+    "scripts": {
+        "build": "backstage-cli package build",
+        "lint": "backstage-cli package lint",
+        "test": "backstage-cli package test",
+        "clean": "backstage-cli package clean",
+        "prepack": "backstage-cli package prepack",
+        "postpack": "backstage-cli package postpack"
+    },
+    "dependencies": {
+        "@backstage/catalog-model": "^1.9.0",
+        "@backstage/config": "^1.3.8",
+        "js-yaml": "^4.1.0"
+    },
+    "devDependencies": {
+        "@backstage/cli": "^0.36.3",
+        "@types/js-yaml": "^4.0.1"
+    },
+    "files": [
+        "dist"
+    ]
+}

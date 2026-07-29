@@ -167,3 +167,17 @@ ldapNotifications:
         frequency: { hours: 6 }
         timeout: { minutes: 5 }
         initialDelay: { seconds: 30 }
+
+# Konflux on-demand resource fetching
+# Replace example URLs with real cluster endpoints.
+konflux:
+    clusters:
+        cluster1:
+            name: Production
+            apiUrl: https://api.cluster1.example.com:6443
+            consoleUrl: https://console-openshift-console.apps.cluster1.example.com
+            # kubearchiveApiUrl: https://kubearchive.apps.cluster1.example.com
+        # cluster2:
+        #     name: Staging
+        #     apiUrl: https://api.cluster2.example.com:6443
+        #     consoleUrl: https://console-openshift-console.apps.cluster2.example.com

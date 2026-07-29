@@ -78,4 +78,8 @@ backend.add(
 backend.add(
     import('@internal/backstage-plugin-backend-module-ldap-notifications'),
 );
+
+// Konflux on-demand resource fetching
+backend.add(import('@internal/backstage-plugin-konflux-backend'));
+
 backend.start();

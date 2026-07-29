@@ -48,6 +48,7 @@
         "@internal/backstage-plugin-backend-module-ldap-notifications": "workspace:^",
         "@internal/backstage-plugin-catalog-backend-module-ldap-user-validation": "workspace:^",
         "@internal/backstage-plugin-catalog-backend-module-pyxis-provider": "workspace:^",
+        "@internal/backstage-plugin-konflux-backend": "workspace:^",
         "app": "link:../app",
         "better-sqlite3": "^12.0.0",
         "node-gyp": "^10.0.0",

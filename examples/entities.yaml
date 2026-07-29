@@ -4,6 +4,12 @@ apiVersion: backstage.io/v1alpha1
 kind: System
 metadata:
     name: examples
+    # Optional: limit Konflux tab to specific cluster+namespace pairs.
+    # If omitted, the tab discovers all projects the user can access.
+    # annotations:
+    #     konflux-ci.dev/namespaces: |
+    #         - cluster: cluster1
+    #           namespace: my-product-tenant
 spec:
     owner: guests
 ---
