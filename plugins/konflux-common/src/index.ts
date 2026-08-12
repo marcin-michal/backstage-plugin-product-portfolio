@@ -23,6 +23,21 @@ export type {
     ProjectsResponse,
 } from './types';
 
+export type {
+    SavedApplicationSnapshot,
+    KonfluxResourceBinding,
+    PyxisBinding,
+    ProductConfig,
+    ProductConfigWriteRequest,
+} from './product-config';
+
+export type {
+    ProductDefinition,
+    CreateProductRequest,
+    ManagedProduct,
+    ProductsListResponse,
+} from './product-definition';
+
 export {
     ApplicationGVK,
     ComponentGVK,
@@ -31,14 +46,10 @@ export {
 } from './models';
 
 export {
-    KONFLUX_NAMESPACES_ANNOTATION,
     KONFLUX_TOKENS_HEADER,
     PAGINATION_CONFIG,
 } from './consts';
 
 export {
-    parseNamespaceMappings,
     getResourceDisplayName,
-    getComponentApplication,
-    getComponentGitUrl,
 } from './resources';

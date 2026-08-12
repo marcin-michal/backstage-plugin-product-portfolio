@@ -5812,6 +5812,18 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@internal/backstage-plugin-catalog-backend-module-product-provider@workspace:^, @internal/backstage-plugin-catalog-backend-module-product-provider@workspace:plugins/catalog-backend-module-product-provider":
+  version: 0.0.0-use.local
+  resolution: "@internal/backstage-plugin-catalog-backend-module-product-provider@workspace:plugins/catalog-backend-module-product-provider"
+  dependencies:
+    "@backstage/backend-plugin-api": "npm:^1.9.2"
+    "@backstage/catalog-model": "npm:^1.9.0"
+    "@backstage/cli": "npm:^0.36.3"
+    "@backstage/plugin-catalog-node": "npm:^2.2.2"
+    "@internal/backstage-plugin-konflux-common": "workspace:^"
+  languageName: unknown
+  linkType: soft
+
 "@internal/backstage-plugin-catalog-backend-module-pyxis-provider@workspace:^, @internal/backstage-plugin-catalog-backend-module-pyxis-provider@workspace:plugins/catalog-backend-module-pyxis-provider":
   version: 0.0.0-use.local
   resolution: "@internal/backstage-plugin-catalog-backend-module-pyxis-provider@workspace:plugins/catalog-backend-module-pyxis-provider"
@@ -11155,6 +11167,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@tanstack/query-core@npm:5.101.4":
+  version: 5.101.4
+  resolution: "@tanstack/query-core@npm:5.101.4"
+  checksum: 10c0/a407960303431e6498c6518cf6f8cc7283d3e4a95dbdc5e9fa42c217b9dd7afaffb82a4f2d36b38f578f745e8cf69ff8551abb947f5abcc0a290f3e3e75dc654
+  languageName: node
+  linkType: hard
+
+"@tanstack/react-query@npm:^5":
+  version: 5.101.4
+  resolution: "@tanstack/react-query@npm:5.101.4"
+  dependencies:
+    "@tanstack/query-core": "npm:5.101.4"
+  peerDependencies:
+    react: ^18 || ^19
+  checksum: 10c0/92e7c5b44740e753b05a6a19c166ea1a000df64c1bf5edb315d08a5b555a9f16a9d35288ac38f650bd38fc3015b135c392749fd6db24d09db42bfaf758d119fa
+  languageName: node
+  linkType: hard
+
 "@tanstack/react-table@npm:^8.21.3":
   version: 8.21.3
   resolution: "@tanstack/react-table@npm:8.21.3"
@@ -13305,6 +13335,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "app@workspace:packages/app"
   dependencies:
+    "@backstage/catalog-model": "npm:^1.9.0"
     "@backstage/cli": "npm:^0.36.3"
     "@backstage/core-components": "npm:^0.18.11"
     "@backstage/core-plugin-api": "npm:^1.12.7"
@@ -13335,6 +13366,7 @@ __metadata:
     "@material-ui/icons": "npm:^4.9.1"
     "@material-ui/lab": "npm:4.0.0-alpha.61"
     "@playwright/test": "npm:^1.32.3"
+    "@tanstack/react-query": "npm:^5"
     "@testing-library/dom": "npm:^9.0.0"
     "@testing-library/jest-dom": "npm:^6.0.0"
     "@testing-library/react": "npm:^14.0.0"
@@ -13961,6 +13993,7 @@ __metadata:
     "@backstage/plugin-techdocs-backend": "npm:^2.2.1"
     "@internal/backstage-plugin-backend-module-ldap-notifications": "workspace:^"
     "@internal/backstage-plugin-catalog-backend-module-ldap-user-validation": "workspace:^"
+    "@internal/backstage-plugin-catalog-backend-module-product-provider": "workspace:^"
     "@internal/backstage-plugin-catalog-backend-module-pyxis-provider": "workspace:^"
     "@internal/backstage-plugin-konflux-backend": "workspace:^"
     app: "link:../app"

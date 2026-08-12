@@ -47,6 +47,7 @@
         "@backstage/plugin-techdocs-backend": "^2.2.1",
         "@internal/backstage-plugin-backend-module-ldap-notifications": "workspace:^",
         "@internal/backstage-plugin-catalog-backend-module-ldap-user-validation": "workspace:^",
+        "@internal/backstage-plugin-catalog-backend-module-product-provider": "workspace:^",
         "@internal/backstage-plugin-catalog-backend-module-pyxis-provider": "workspace:^",
         "@internal/backstage-plugin-konflux-backend": "workspace:^",
         "app": "link:../app",

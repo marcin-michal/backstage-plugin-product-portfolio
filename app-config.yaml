@@ -10,6 +10,10 @@ app:
         - page:catalog:
               config:
                   path: /
+        # Product Systems use the composition Overview from the app module instead
+        - entity-content:catalog/overview:
+              config:
+                  filter: '!kind:System'
 
 organization:
     name: My Company
@@ -171,6 +175,10 @@ ldapNotifications:
 # Konflux on-demand resource fetching
 # Replace example URLs with real cluster endpoints.
 konflux:
+    # Optional path for the product composition JSON store (defaults to ./konflux-product-configs.json)
+    # productConfigPath: ./konflux-product-configs.json
+    # Optional path for user-created product System definitions (defaults to ./konflux-products.json)
+    # productsPath: ./konflux-products.json
     clusters:
         cluster1:
             name: Production

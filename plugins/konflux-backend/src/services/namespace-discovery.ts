@@ -35,7 +35,9 @@ export class NamespaceDiscoveryService {
 
         try {
             return await this.listFromApi(
-                `${base}/api/v1/namespaces?labelSelector=${encodeURIComponent(KONFLUX_TENANT_LABEL_SELECTOR)}`,
+                `${base}/api/v1/namespaces?labelSelector=${encodeURIComponent(
+                    KONFLUX_TENANT_LABEL_SELECTOR,
+                )}`,
                 token,
                 clusterId,
                 'namespaces',
@@ -50,7 +52,9 @@ export class NamespaceDiscoveryService {
                     { cluster: clusterId, statusCode: error.statusCode },
                 );
                 return this.listFromApi(
-                    `${base}/apis/project.openshift.io/v1/projects?labelSelector=${encodeURIComponent(KONFLUX_TENANT_LABEL_SELECTOR)}`,
+                    `${base}/apis/project.openshift.io/v1/projects?labelSelector=${encodeURIComponent(
+                        KONFLUX_TENANT_LABEL_SELECTOR,
+                    )}`,
                     token,
                     clusterId,
                     'projects',
@@ -81,7 +85,9 @@ export class NamespaceDiscoveryService {
         if (!response.ok) {
             const body = await response.text().catch(() => '');
             throw new HttpStatusError(
-                `Failed to list ${source} on cluster '${clusterId}': HTTP ${response.status}${body ? `: ${body}` : ''}`,
+                `Failed to list ${source} on cluster '${clusterId}': HTTP ${
+                    response.status
+                }${body ? `: ${body}` : ''}`,
                 response.status,
             );
         }

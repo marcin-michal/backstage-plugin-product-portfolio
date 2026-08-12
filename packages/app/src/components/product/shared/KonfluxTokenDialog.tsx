@@ -30,8 +30,12 @@ export interface KonfluxTokenDialogProps {
 /**
  * Per-cluster dialog for pasting an OpenShift "Copy login command" token.
  */
-export function KonfluxTokenDialog(props: KonfluxTokenDialogProps) {
-    const { cluster, open, onAuthenticated, onClose } = props;
+export const KonfluxTokenDialog = ({
+    cluster,
+    open,
+    onAuthenticated,
+    onClose,
+}: KonfluxTokenDialogProps) => {
     const discoveryApi = useApi(discoveryApiRef);
     const fetchApi = useApi(fetchApiRef);
     const [token, setToken] = useState('');
@@ -72,7 +76,9 @@ export function KonfluxTokenDialog(props: KonfluxTokenDialogProps) {
 
             if (!response.ok) {
                 const body = await response.json().catch(() => ({}));
-                setError(body.error || `Validation failed: HTTP ${response.status}`);
+                setError(
+                    body.error || `Validation failed: HTTP ${response.status}`,
+                );
                 return;
             }
 
@@ -88,9 +94,7 @@ export function KonfluxTokenDialog(props: KonfluxTokenDialogProps) {
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-            <DialogTitle>
-                Connect to {cluster.name || cluster.id}
-            </DialogTitle>
+            <DialogTitle>Connect to {cluster.name || cluster.id}</DialogTitle>
             <DialogContent>
                 <DialogContentText>
                     Paste a personal access token for{' '}
@@ -149,4 +153,4 @@ export function KonfluxTokenDialog(props: KonfluxTokenDialogProps) {
             </DialogActions>
         </Dialog>
     );
-}
+};

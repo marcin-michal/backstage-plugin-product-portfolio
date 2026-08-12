@@ -10,6 +10,7 @@ import { NavContentBlueprint } from '@backstage/plugin-app-react';
 import { SidebarLogo } from './SidebarLogo';
 import MenuIcon from '@material-ui/icons/Menu';
 import SearchIcon from '@material-ui/icons/Search';
+import CategoryIcon from '@material-ui/icons/Category';
 import { SidebarSearchModal } from '@backstage/plugin-search';
 import { UserSettingsSignInAvatar } from '@backstage/plugin-user-settings';
 import { NotificationsSidebarItem } from '@backstage/plugin-notifications';
@@ -27,6 +28,10 @@ export const SidebarContent = NavContentBlueprint.make({
 
             // Skipped items
             nav.take('page:search'); // Using search modal instead
+            // Prefer an explicit Products link; consume the page extension if present
+            // so it does not also appear under "rest".
+            nav.take('page:app/products');
+            nav.take('page:products');
 
             return (
                 <Sidebar>
@@ -41,6 +46,11 @@ export const SidebarContent = NavContentBlueprint.make({
                     <SidebarDivider />
                     <SidebarGroup label="Menu" icon={<MenuIcon />}>
                         {nav.take('page:catalog')}
+                        <SidebarItem
+                            icon={CategoryIcon}
+                            to="/products"
+                            text="Products"
+                        />
                         {nav.take('page:scaffolder')}
                         <SidebarDivider />
                         <SidebarScrollWrapper>

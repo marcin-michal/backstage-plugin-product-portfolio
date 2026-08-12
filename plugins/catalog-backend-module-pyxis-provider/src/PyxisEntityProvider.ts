@@ -50,16 +50,23 @@ export class PyxisEntityProvider implements EntityProvider {
         if (!this.connection) {
             throw new Error('Not initialized');
         }
-
         this.logger.info('Starting Pyxis entity sync...');
-
         const productListings = await this.client.fetchAllProductListings();
         this.logger.info(`Fetched ${productListings.length} product listings`);
-
         const repositoryResults = await Promise.all(
-            productListings.map(listing =>
-                this.client.fetchRepositoriesByProductListing(listing._id),
-            ),
+            productListings.map(async listing => {
+                try {
+                    return await this.client.fetchRepositoriesByProductListing(
+                        listing._id,
+                    );
+                } catch (error) {
+                    this.logger.warn(
+                        `Failed to fetch repositories for product listing ` +
+                            `\`${listing._id}\`, skipping: ${error}`,
+                    );
+                    return [];
+                }
+            }),
         );
         const repositoryById = new Map<string, PyxisContainerRepository>();
         for (const repos of repositoryResults) {
@@ -69,7 +76,6 @@ export class PyxisEntityProvider implements EntityProvider {
         }
         const repositories = Array.from(repositoryById.values());
         this.logger.info(`Fetched ${repositories.length} unique repositories`);
-
         const rawTeamIds = [
             ...new Set(
                 [
@@ -87,18 +93,14 @@ export class PyxisEntityProvider implements EntityProvider {
         }
         const teamIds = rawTeamIds.filter(isPyxisObjectId);
         this.logger.info(`Found ${teamIds.length} unique team ObjectIDs`);
-
         const teams = await this.client.fetchTeams(teamIds);
         this.logger.info(`Fetched ${teams.length} teams`);
-
         const teamNameById = new Map(teams.map(t => [t._id, t.name]));
         for (const name of invalidTeamIds) {
             teamNameById.set(name, name);
         }
-
         const userMap = collectUniqueUsers(teams);
         this.logger.info(`Found ${userMap.size} unique users`);
-
         const entities: Entity[] = [
             ...productListings.map(pl =>
                 toProductListingEntity(pl, teamNameById, this.config.url),
@@ -120,7 +122,6 @@ export class PyxisEntityProvider implements EntityProvider {
             ),
             ...Array.from(userMap.values()).map(u => toUserEntity(u)),
         ];
-
         await this.connection.applyMutation({
             type: 'full',
             entities: entities.map(entity => ({
@@ -128,7 +129,6 @@ export class PyxisEntityProvider implements EntityProvider {
                 locationKey: `pyxis-provider:${this.getProviderName()}`,
             })),
         });
-
         this.logger.info(
             `Pyxis sync complete: ${productListings.length} products, ` +
                 `${repositories.length} repositories, ${teams.length} teams, ` +

@@ -2,12 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const STORAGE_KEY = 'konflux-cluster-tokens';
 
-function readTokens(): Record<string, string> {
+const readTokens = (): Record<string, string> => {
     try {
         const raw = sessionStorage.getItem(STORAGE_KEY);
-        if (!raw) {
-            return {};
-        }
+        if (!raw) return {};
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
             const tokens: Record<string, string> = {};
@@ -22,17 +20,19 @@ function readTokens(): Record<string, string> {
         // ignore corrupt storage
     }
     return {};
-}
+};
 
-function writeTokens(tokens: Record<string, string>): void {
+const writeTokens = (tokens: Record<string, string>): void => {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(tokens));
-}
+};
 
 /**
  * Manages per-cluster Konflux tokens in sessionStorage.
  * Tokens survive page refresh but are cleared when the tab closes.
  */
-export function useKonfluxTokens(configuredClusterIds: string[] = []): {
+export const useKonfluxTokens = (
+    configuredClusterIds: string[] = [],
+): {
     tokens: Record<string, string>;
     hasToken: (cluster: string) => boolean;
     setToken: (cluster: string, token: string) => void;
@@ -40,7 +40,7 @@ export function useKonfluxTokens(configuredClusterIds: string[] = []): {
     clearAll: () => void;
     missingClusters: string[];
     markExpired: (cluster: string) => void;
-} {
+} => {
     const [tokens, setTokens] = useState<Record<string, string>>(() =>
         typeof window !== 'undefined' ? readTokens() : {},
     );
@@ -68,9 +68,7 @@ export function useKonfluxTokens(configuredClusterIds: string[] = []): {
 
     const clearToken = useCallback(
         (cluster: string) => {
-            if (!(cluster in tokens)) {
-                return;
-            }
+            if (!(cluster in tokens)) return;
             const next = { ...tokens };
             delete next[cluster];
             persist(next);
@@ -103,4 +101,4 @@ export function useKonfluxTokens(configuredClusterIds: string[] = []): {
         missingClusters,
         markExpired,
     };
-}
+};

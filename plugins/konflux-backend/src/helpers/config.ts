@@ -5,8 +5,14 @@ import {
 import { Config } from '@backstage/config';
 import { KonfluxLogger } from './logger';
 
+/** Default relative path for the product composition store. */
+export const DEFAULT_PRODUCT_CONFIG_PATH = './konflux-product-configs.json';
+
+/** Default relative path for user-created product System definitions. */
+export const DEFAULT_PRODUCTS_PATH = './konflux-products.json';
+
 /**
- * Parse konflux.clusters from app-config.yaml.
+ * Parse konflux config from app-config.yaml.
  */
 export function getKonfluxConfig(
     config: Config,
@@ -18,9 +24,16 @@ export function getKonfluxConfig(
             return undefined;
         }
 
+        const productConfigPath =
+            konfluxConfig.getOptionalString('productConfigPath') ??
+            DEFAULT_PRODUCT_CONFIG_PATH;
+        const productsPath =
+            konfluxConfig.getOptionalString('productsPath') ??
+            DEFAULT_PRODUCTS_PATH;
+
         const clustersConfig = konfluxConfig.getOptionalConfig('clusters');
         if (!clustersConfig) {
-            return { clusters: {} };
+            return { clusters: {}, productConfigPath, productsPath };
         }
 
         const clusters: Record<string, KonfluxClusterConfig> = {};
@@ -38,7 +51,7 @@ export function getKonfluxConfig(
             };
         }
 
-        return { clusters };
+        return { clusters, productConfigPath, productsPath };
     } catch (error) {
         logger.error('Error parsing Konflux configuration', error);
         return undefined;

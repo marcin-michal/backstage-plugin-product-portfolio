@@ -1,7 +1,3 @@
-/** Annotation listing product-relevant Konflux namespaces on a System entity. */
-/** @public */
-export const KONFLUX_NAMESPACES_ANNOTATION = 'konflux-ci.dev/namespaces';
-
 /** Header carrying per-cluster user tokens from frontend to backend. */
 /** @public */
 export const KONFLUX_TOKENS_HEADER = 'x-konflux-tokens';

@@ -91,6 +91,16 @@ export interface KonfluxClusterConfig {
 /** @public */
 export interface KonfluxConfig {
     clusters: Record<string, KonfluxClusterConfig>;
+    /**
+     * Path to the JSON file storing product compositions.
+     * Defaults to `./konflux-product-configs.json` when unset.
+     */
+    productConfigPath?: string;
+    /**
+     * Path to the JSON file storing user-created product System definitions.
+     * Defaults to `./konflux-products.json` when unset.
+     */
+    productsPath?: string;
 }
 
 /** @public */

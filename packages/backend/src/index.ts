@@ -72,6 +72,11 @@ backend.add(
 );
 backend.add(
     import(
+        '@internal/backstage-plugin-catalog-backend-module-product-provider'
+    ),
+);
+backend.add(
+    import(
         '@internal/backstage-plugin-catalog-backend-module-ldap-user-validation'
     ),
 );
