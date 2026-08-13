@@ -14,7 +14,7 @@ import {
     KonfluxResourceBinding,
     getResourceDisplayName,
 } from '@internal/backstage-plugin-konflux-common';
-import { KonfluxApiError } from '../../hooks/api/konfluxApi';
+import { BackendApiError } from '../../hooks/api/backendApi';
 import { useCompositionStyles } from './composition.styles';
 import { SnapshotsTable } from './SnapshotsTable';
 
@@ -61,7 +61,7 @@ export const ApplicationsTable = ({
 
             {resourcesError &&
                 !(
-                    resourcesError instanceof KonfluxApiError &&
+                    resourcesError instanceof BackendApiError &&
                     resourcesError.statusCode === 401
                 ) && (
                     <Alert severity="error">{resourcesError.message}</Alert>

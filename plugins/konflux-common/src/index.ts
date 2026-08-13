@@ -15,7 +15,8 @@ export type {
     ComponentResource,
     KonfluxResource,
     KonfluxClusterConfig,
-    KonfluxConfig,
+    KonfluxClusterMap,
+    ProductStoreConfig,
     ClusterPublicInfo,
     ClusterError,
     NamespaceMapping,
@@ -48,6 +49,8 @@ export {
 export {
     KONFLUX_TOKENS_HEADER,
     PAGINATION_CONFIG,
+    DEFAULT_PRODUCT_CONFIG_PATH,
+    DEFAULT_PRODUCTS_PATH,
 } from './consts';
 
 export {

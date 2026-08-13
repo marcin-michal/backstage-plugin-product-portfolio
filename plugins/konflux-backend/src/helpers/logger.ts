@@ -16,7 +16,7 @@ export interface LogContext {
     [key: string]: JsonValue | undefined;
 }
 
-export class KonfluxLogger {
+export class StructuredLogger {
     public readonly baseLogger: LoggerService;
 
     constructor(baseLogger: LoggerService) {

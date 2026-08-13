@@ -6,7 +6,7 @@ import { AsyncResult } from '../api/queryTypes';
 
 /**
  * Base wrapper for Backstage catalog reads. Mirrors the shape of
- * {@link useKonfluxQuery} so all product hooks present the same contract.
+ * {@link useBackendQuery} so all product hooks present the same contract.
  *
  * ```ts
  * const { data, loading, error, refetch } = useCatalogQuery(

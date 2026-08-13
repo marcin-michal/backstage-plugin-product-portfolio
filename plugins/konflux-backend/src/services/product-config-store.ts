@@ -1,32 +1,18 @@
-import { promises as fs } from 'fs';
-import * as path from 'path';
 import { LoggerService } from '@backstage/backend-plugin-api';
 import { ProductConfig } from '@internal/backstage-plugin-konflux-common';
-import { KonfluxLogger } from '../helpers/logger';
-
-type ProductConfigMap = Record<string, ProductConfig>;
+import { JsonFileStore } from './json-file-store';
 
 /**
  * File-backed store for product compositions (System → Konflux/Pyxis bindings).
  *
- * Single JSON file with an in-memory cache. Atomic writes via temp file + rename.
+ * Atomic writes via temp file + rename.
  *
  * NOTE: This is fine for a single-instance PoC. Multi-instance deployments
  * should replace this with a shared database (e.g. Backstage's Knex/PostgreSQL).
  */
-export class ProductConfigStore {
-    private readonly logger: KonfluxLogger;
-    private readonly filePath: string;
-    private cache: ProductConfigMap | undefined;
-    private loadPromise: Promise<ProductConfigMap> | undefined;
-
+export class ProductConfigStore extends JsonFileStore<ProductConfig> {
     constructor(filePath: string, logger: LoggerService) {
-        this.filePath = path.resolve(filePath);
-        this.logger = new KonfluxLogger(logger);
-    }
-
-    get path(): string {
-        return this.filePath;
+        super(filePath, logger);
     }
 
     async get(entityRef: string): Promise<ProductConfig | undefined> {
@@ -50,11 +36,9 @@ export class ProductConfigStore {
         if (!(entityRef in data)) {
             return false;
         }
-
         delete data[entityRef];
         await this.persist(data);
         this.logger.info('Deleted product config', { entityRef });
-
         return true;
     }
 
@@ -74,71 +58,5 @@ export class ProductConfigStore {
             )
             .map(([entityRef]) => entityRef)
             .sort((a, b) => a.localeCompare(b));
-    }
-
-    private async load(): Promise<ProductConfigMap> {
-        if (this.cache) {
-            return this.cache;
-        }
-
-        if (!this.loadPromise) {
-            this.loadPromise = this.readFromDisk();
-        }
-
-        try {
-            this.cache = await this.loadPromise;
-            return this.cache;
-        } finally {
-            this.loadPromise = undefined;
-        }
-    }
-
-    private async readFromDisk(): Promise<ProductConfigMap> {
-        try {
-            const raw = await fs.readFile(this.filePath, 'utf8');
-            const parsed = JSON.parse(raw) as unknown;
-            if (
-                !parsed ||
-                typeof parsed !== 'object' ||
-                Array.isArray(parsed)
-            ) {
-                this.logger.warn(
-                    'Product config file is not a JSON object; starting empty',
-                    { path: this.filePath },
-                );
-                return {};
-            }
-            return parsed as ProductConfigMap;
-        } catch (error) {
-            const code =
-                error && typeof error === 'object' && 'code' in error
-                    ? (error as NodeJS.ErrnoException).code
-                    : undefined;
-            if (code === 'ENOENT') {
-                return {};
-            }
-            this.logger.error(
-                'Failed to read product config file; starting empty',
-                error,
-                { path: this.filePath },
-            );
-            return {};
-        }
-    }
-
-    private async persist(data: ProductConfigMap): Promise<void> {
-        await fs.mkdir(path.dirname(this.filePath), { recursive: true });
-
-        const tmpPath = `${this.filePath}.${process.pid}.${Date.now()}.tmp`;
-        const payload = `${JSON.stringify(data, null, 2)}\n`;
-
-        try {
-            await fs.writeFile(tmpPath, payload, 'utf8');
-            await fs.rename(tmpPath, this.filePath);
-            this.cache = data;
-        } catch (error) {
-            await fs.unlink(tmpPath).catch(() => undefined);
-            throw error;
-        }
     }
 }

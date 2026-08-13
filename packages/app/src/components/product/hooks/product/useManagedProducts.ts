@@ -3,7 +3,7 @@ import {
     ManagedProduct,
     ProductsListResponse,
 } from '@internal/backstage-plugin-konflux-common';
-import { useKonfluxQuery } from '../konflux/useKonfluxQuery';
+import { useBackendQuery } from '../api/useBackendQuery';
 
 export const managedProductsQueryKey = [
     'konflux',
@@ -18,7 +18,7 @@ export const useManagedProducts = (): {
     refetch: () => void;
 } => {
     const { data, loading, error, refetch } =
-        useKonfluxQuery<ProductsListResponse>(
+        useBackendQuery<ProductsListResponse>(
             managedProductsQueryKey,
             '/products',
         );

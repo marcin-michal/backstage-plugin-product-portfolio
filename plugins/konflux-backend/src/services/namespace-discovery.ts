@@ -1,5 +1,5 @@
 import { LoggerService } from '@backstage/backend-plugin-api';
-import { KonfluxLogger } from '../helpers/logger';
+import { StructuredLogger } from '../helpers/logger';
 import { HttpStatusError } from '../helpers/errors';
 
 /** Label Konflux uses so tenant namespaces appear in the console. */
@@ -20,10 +20,10 @@ interface NamespaceListItem {
  * when core Namespace list is forbidden.
  */
 export class NamespaceDiscoveryService {
-    private readonly logger: KonfluxLogger;
+    private readonly logger: StructuredLogger;
 
     constructor(logger: LoggerService) {
-        this.logger = new KonfluxLogger(logger);
+        this.logger = new StructuredLogger(logger);
     }
 
     async listAccessibleTenantNamespaces(

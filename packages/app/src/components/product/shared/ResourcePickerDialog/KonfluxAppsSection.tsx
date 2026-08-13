@@ -22,7 +22,7 @@ import {
     KonfluxResourceBinding,
     getResourceDisplayName,
 } from '@internal/backstage-plugin-konflux-common';
-import { KonfluxApiError } from '../../hooks/api/konfluxApi';
+import { BackendApiError } from '../../hooks/api/backendApi';
 import {
     applicationToBinding,
     konfluxBindingKey,
@@ -90,11 +90,11 @@ export const KonfluxAppsSection = ({
     const classes = useResourcePickerStyles();
 
     const appsKonfluxError =
-        appsError instanceof KonfluxApiError ? appsError : undefined;
+        appsError instanceof BackendApiError ? appsError : undefined;
     const projectsKonfluxError =
-        projectsError instanceof KonfluxApiError ? projectsError : undefined;
+        projectsError instanceof BackendApiError ? projectsError : undefined;
 
-    let authError: KonfluxApiError | undefined;
+    let authError: BackendApiError | undefined;
     if (appsKonfluxError?.statusCode === 401) {
         authError = appsKonfluxError;
     } else if (projectsKonfluxError?.statusCode === 401) {
@@ -254,7 +254,7 @@ export const KonfluxAppsSection = ({
 
                     {appsError &&
                         !(
-                            appsError instanceof KonfluxApiError &&
+                            appsError instanceof BackendApiError &&
                             appsError.statusCode === 401
                         ) && (
                             <Alert severity="error">{appsError.message}</Alert>

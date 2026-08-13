@@ -1,9 +1,9 @@
 import { ClusterPublicInfo } from '@internal/backstage-plugin-konflux-common';
 import { AsyncResult } from '../api/queryTypes';
-import { useKonfluxQuery } from './useKonfluxQuery';
+import { useBackendQuery } from '../api/useBackendQuery';
 
 export const useKonfluxClusters = (): AsyncResult<ClusterPublicInfo[]> => {
-    const { data, loading, error, refetch } = useKonfluxQuery<{
+    const { data, loading, error, refetch } = useBackendQuery<{
         clusters: ClusterPublicInfo[];
     }>(['konflux', 'clusters'], '/clusters');
 

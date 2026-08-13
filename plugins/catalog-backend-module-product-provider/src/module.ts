@@ -3,9 +3,8 @@ import {
     createBackendModule,
 } from '@backstage/backend-plugin-api';
 import { catalogProcessingExtensionPoint } from '@backstage/plugin-catalog-node';
+import { DEFAULT_PRODUCTS_PATH } from '@internal/backstage-plugin-konflux-common';
 import { ProductEntityProvider } from './ProductEntityProvider';
-
-const DEFAULT_PRODUCTS_PATH = './konflux-products.json';
 
 export const catalogModuleProductProvider = createBackendModule({
     pluginId: 'catalog',

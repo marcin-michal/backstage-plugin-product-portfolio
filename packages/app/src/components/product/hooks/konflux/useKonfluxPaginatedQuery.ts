@@ -4,7 +4,7 @@ import {
     KonfluxResource,
     ResourcesResponse,
 } from '@internal/backstage-plugin-konflux-common';
-import { KonfluxApiError, useKonfluxRequest } from '../api/konfluxApi';
+import { BackendApiError, useBackendRequest } from '../api/backendApi';
 import { PaginatedResult } from '../api/queryTypes';
 
 export interface KonfluxPaginatedQueryOptions {
@@ -35,7 +35,7 @@ export const useKonfluxPaginatedQuery = (
     tokens: Record<string, string>,
     options: KonfluxPaginatedQueryOptions = {},
 ): PaginatedResult<KonfluxResource> => {
-    const request = useKonfluxRequest();
+    const request = useBackendRequest();
     const hasTokens = Object.keys(tokens).length > 0;
     const enabled = (options.enabled ?? true) && hasTokens;
 
@@ -74,7 +74,7 @@ export const useKonfluxPaginatedQuery = (
     return {
         data,
         loading: query.isLoading,
-        error: (query.error as KonfluxApiError) ?? undefined,
+        error: (query.error as BackendApiError) ?? undefined,
         refetch: () => void query.refetch(),
         hasMore: query.hasNextPage ?? false,
         loadMore: () => void query.fetchNextPage(),

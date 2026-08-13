@@ -1,7 +1,7 @@
-export { KonfluxApiError, konfluxRequest, useKonfluxRequest, konfluxRequestOrUndefined } from '../api/konfluxApi';
-export type { KonfluxRequestInit } from '../api/konfluxApi';
+export { BackendApiError, backendRequest, useBackendRequest, backendRequestOrUndefined } from '../api/backendApi';
+export type { BackendRequestInit } from '../api/backendApi';
+export { useBackendQuery } from '../api/useBackendQuery';
 
-export { useKonfluxQuery } from './useKonfluxQuery';
 export { useKonfluxPaginatedQuery } from './useKonfluxPaginatedQuery';
 export type { KonfluxPaginatedQueryOptions } from './useKonfluxPaginatedQuery';
 export { createKonfluxResourceListHook } from './useKonfluxResourceList';

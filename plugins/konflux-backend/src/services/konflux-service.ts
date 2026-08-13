@@ -3,7 +3,7 @@ import { Config } from '@backstage/config';
 import {
     ClusterError,
     ClusterPublicInfo,
-    KonfluxConfig,
+    KonfluxClusterMap,
     KonfluxResource,
     PAGINATION_CONFIG,
     ProjectsResponse,
@@ -11,14 +11,17 @@ import {
     getResourceDisplayName,
     konfluxResourceModels,
 } from '@internal/backstage-plugin-konflux-common';
+import { mapPool } from '../helpers/concurrency';
 import { getKonfluxConfig } from '../helpers/config';
 import { errorMessage, getHttpStatusCode } from '../helpers/errors';
-import { KonfluxLogger } from '../helpers/logger';
-import { NamespaceDiscoveryService } from './namespace-discovery';
+import { StructuredLogger } from '../helpers/logger';
 import {
-    ResourceFetcherService,
-    SourcePaginationState,
-} from './resource-fetcher';
+    ContinuationPayload,
+    decodeContinuation,
+    encodeContinuation,
+} from '../helpers/pagination';
+import { NamespaceDiscoveryService } from './namespace-discovery';
+import { ResourceFetcherService } from './resource-fetcher';
 
 export type ClusterTokens = Record<string, string>;
 
@@ -34,14 +37,6 @@ export interface ResourceQuery {
     namespaceMappings?: Array<{ cluster: string; namespace: string }>;
 }
 
-type ContinuationPayload = {
-    sources: Array<{
-        cluster: string;
-        namespace: string;
-        state: SourcePaginationState;
-    }>;
-};
-
 type FetchTarget = {
     cluster: string;
     namespace: string;
@@ -52,13 +47,13 @@ type FetchTarget = {
 const FETCH_CONCURRENCY = 8;
 
 export class KonfluxService {
-    private readonly logger: KonfluxLogger;
-    private readonly config: KonfluxConfig;
+    private readonly logger: StructuredLogger;
+    private readonly config: KonfluxClusterMap;
     private readonly namespaceDiscovery: NamespaceDiscoveryService;
     private readonly resourceFetcher: ResourceFetcherService;
 
-    private constructor(logger: LoggerService, config: KonfluxConfig) {
-        this.logger = new KonfluxLogger(logger);
+    private constructor(logger: LoggerService, config: KonfluxClusterMap) {
+        this.logger = new StructuredLogger(logger);
         this.config = config;
         this.namespaceDiscovery = new NamespaceDiscoveryService(logger);
         this.resourceFetcher = new ResourceFetcherService(logger);
@@ -68,10 +63,9 @@ export class KonfluxService {
         rootConfig: Config,
         logger: LoggerService,
     ): KonfluxService {
-        const konfluxLogger = new KonfluxLogger(logger);
-        const config = getKonfluxConfig(rootConfig, konfluxLogger) ?? {
-            clusters: {},
-        };
+        const konfluxLogger = new StructuredLogger(logger);
+        const parsed = getKonfluxConfig(rootConfig, konfluxLogger);
+        const config: KonfluxClusterMap = parsed ?? { clusters: {} };
         return new KonfluxService(logger, config);
     }
 
@@ -84,7 +78,7 @@ export class KonfluxService {
         }));
     }
 
-    getConfig(): KonfluxConfig {
+    getConfig(): KonfluxClusterMap {
         return this.config;
     }
 
@@ -144,7 +138,11 @@ export class KonfluxService {
         const resourceModel = konfluxResourceModels[query.resourceType];
         if (!resourceModel) {
             throw new Error(
-                `Invalid resource type '${query.resourceType}'. Supported: ${Object.keys(konfluxResourceModels).join(', ')}`,
+                `Invalid resource type '${
+                    query.resourceType
+                }'. Supported: ${Object.keys(konfluxResourceModels).join(
+                    ', ',
+                )}`,
             );
         }
 
@@ -232,15 +230,12 @@ export class KonfluxService {
                 // Soft-skip namespaces the user cannot list in, or that do not
                 // expose this CRD — same idea as Konflux only showing usable tenants.
                 if (statusCode === 403 || statusCode === 404) {
-                    this.logger.debug(
-                        'Skipping namespace for resource fetch',
-                        {
-                            cluster: target.cluster,
-                            namespace: target.namespace,
-                            resource: query.resourceType,
-                            statusCode,
-                        },
-                    );
+                    this.logger.debug('Skipping namespace for resource fetch', {
+                        cluster: target.cluster,
+                        namespace: target.namespace,
+                        resource: query.resourceType,
+                        statusCode,
+                    });
                     return;
                 }
 
@@ -369,53 +364,5 @@ export class KonfluxService {
         }
 
         return targets;
-    }
-}
-
-/**
- * Run async work over items with a fixed concurrency limit.
- */
-async function mapPool<T>(
-    items: T[],
-    concurrency: number,
-    worker: (item: T) => Promise<void>,
-): Promise<void> {
-    if (items.length === 0) {
-        return;
-    }
-
-    const limit = Math.max(1, concurrency);
-    let nextIndex = 0;
-
-    const runners = Array.from(
-        { length: Math.min(limit, items.length) },
-        async () => {
-            while (nextIndex < items.length) {
-                const current = items[nextIndex];
-                nextIndex += 1;
-                await worker(current);
-            }
-        },
-    );
-
-    await Promise.all(runners);
-}
-
-function encodeContinuation(payload: ContinuationPayload): string {
-    return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
-}
-
-function decodeContinuation(
-    token?: string,
-): ContinuationPayload | undefined {
-    if (!token) {
-        return undefined;
-    }
-    try {
-        return JSON.parse(
-            Buffer.from(token, 'base64url').toString('utf8'),
-        ) as ContinuationPayload;
-    } catch {
-        return undefined;
     }
 }

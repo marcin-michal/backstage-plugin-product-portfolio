@@ -1,23 +1,25 @@
 import {
     KonfluxClusterConfig,
-    KonfluxConfig,
+    KonfluxClusterMap,
+    ProductStoreConfig,
 } from '@internal/backstage-plugin-konflux-common';
 import { Config } from '@backstage/config';
-import { KonfluxLogger } from './logger';
+import { StructuredLogger } from './logger';
 
-/** Default relative path for the product composition store. */
-export const DEFAULT_PRODUCT_CONFIG_PATH = './konflux-product-configs.json';
-
-/** Default relative path for user-created product System definitions. */
-export const DEFAULT_PRODUCTS_PATH = './konflux-products.json';
+export interface ParsedKonfluxConfig extends KonfluxClusterMap, ProductStoreConfig {}
 
 /**
  * Parse konflux config from app-config.yaml.
+ *
+ * Returns an object that satisfies both KonfluxClusterMap (for the Konflux
+ * K8s service) and ProductStoreConfig (for the product/product-config stores).
+ * Callers that only need cluster info should type the result as KonfluxClusterMap;
+ * callers that only need file paths should type it as ProductStoreConfig.
  */
 export function getKonfluxConfig(
     config: Config,
-    logger: KonfluxLogger,
-): KonfluxConfig | undefined {
+    logger: StructuredLogger,
+): ParsedKonfluxConfig | undefined {
     try {
         const konfluxConfig = config.getOptionalConfig('konflux');
         if (!konfluxConfig) {
@@ -26,10 +28,10 @@ export function getKonfluxConfig(
 
         const productConfigPath =
             konfluxConfig.getOptionalString('productConfigPath') ??
-            DEFAULT_PRODUCT_CONFIG_PATH;
+            undefined;
         const productsPath =
             konfluxConfig.getOptionalString('productsPath') ??
-            DEFAULT_PRODUCTS_PATH;
+            undefined;
 
         const clustersConfig = konfluxConfig.getOptionalConfig('clusters');
         if (!clustersConfig) {

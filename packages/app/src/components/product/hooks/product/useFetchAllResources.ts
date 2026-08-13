@@ -4,7 +4,7 @@ import {
     NamespaceMapping,
     ResourcesResponse,
 } from '@internal/backstage-plugin-konflux-common';
-import { KonfluxRequestInit, useKonfluxRequest } from '../api/konfluxApi';
+import { BackendRequestInit, useBackendRequest } from '../api/backendApi';
 
 /**
  * Returns an imperative `fetchAll(path, options)` function that pages through
@@ -29,7 +29,7 @@ export const useFetchAllResources = (
         query?: Record<string, string | undefined>;
     },
 ) => Promise<KonfluxResource[]>) => {
-    const request = useKonfluxRequest();
+    const request = useBackendRequest();
 
     return useCallback(
         async (
@@ -47,7 +47,7 @@ export const useFetchAllResources = (
                     : undefined;
 
             do {
-                const init: KonfluxRequestInit = {
+                const init: BackendRequestInit = {
                     tokens,
                     query: {
                         ...options.query,

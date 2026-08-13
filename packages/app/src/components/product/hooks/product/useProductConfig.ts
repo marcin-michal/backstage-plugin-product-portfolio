@@ -7,10 +7,10 @@ import {
     PyxisBinding,
 } from '@internal/backstage-plugin-konflux-common';
 import {
-    KonfluxApiError,
-    konfluxRequestOrUndefined,
-    useKonfluxRequest,
-} from '../api/konfluxApi';
+    BackendApiError,
+    backendRequestOrUndefined,
+    useBackendRequest,
+} from '../api/backendApi';
 
 export type ProductConfigSaveInput = {
     konfluxBindings: KonfluxResourceBinding[];
@@ -40,14 +40,14 @@ export const useProductConfig = (
     refetch: () => void;
     configured: boolean;
 } => {
-    const request = useKonfluxRequest();
+    const request = useBackendRequest();
     const queryClient = useQueryClient();
     const queryKey = productConfigQueryKey(entityRef);
 
     const query = useQuery({
         queryKey,
         queryFn: () =>
-            konfluxRequestOrUndefined<ProductConfig>(
+            backendRequestOrUndefined<ProductConfig>(
                 request,
                 productConfigPath(entityRef),
             ).then(result => result ?? null),
@@ -69,7 +69,7 @@ export const useProductConfig = (
 
     const removeMutation = useMutation({
         mutationFn: () =>
-            konfluxRequestOrUndefined<void>(
+            backendRequestOrUndefined<void>(
                 request,
                 productConfigPath(entityRef),
                 { method: 'DELETE' },
@@ -78,7 +78,7 @@ export const useProductConfig = (
     });
 
     const error: Error | undefined =
-        (query.error as KonfluxApiError) ??
+        (query.error as BackendApiError) ??
         saveMutation.error ??
         removeMutation.error ??
         undefined;

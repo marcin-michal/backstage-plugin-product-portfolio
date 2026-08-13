@@ -3,7 +3,7 @@ import {
     CreateProductRequest,
     ProductDefinition,
 } from '@internal/backstage-plugin-konflux-common';
-import { useKonfluxRequest } from '../api/konfluxApi';
+import { useBackendRequest } from '../api/backendApi';
 import { managedProductsQueryKey } from './useManagedProducts';
 
 /**
@@ -15,7 +15,7 @@ export const useCreateProduct = (): {
     creating: boolean;
     error?: string;
 } => {
-    const request = useKonfluxRequest();
+    const request = useBackendRequest();
     const queryClient = useQueryClient();
 
     const mutation = useMutation({

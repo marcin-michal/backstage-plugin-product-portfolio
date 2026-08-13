@@ -1,9 +1,9 @@
 import type { ConfigurationOptions } from '@kubernetes/client-node';
 import {
-    KonfluxConfig,
+    KonfluxClusterMap,
 } from '@internal/backstage-plugin-konflux-common';
 import type { CustomObjectsApi, KubeConfig } from '@kubernetes/client-node';
-import { KonfluxLogger } from './logger';
+import { StructuredLogger } from './logger';
 import { getKubeClient } from './kube-client';
 
 /**
@@ -14,9 +14,9 @@ import { getKubeClient } from './kube-client';
 const clientCache = new Map<string, CustomObjectsApi>();
 
 export const createKubeConfig = async (
-    konfluxConfig: KonfluxConfig | undefined,
+    konfluxConfig: KonfluxClusterMap | undefined,
     cluster: string,
-    konfluxLogger: KonfluxLogger,
+    konfluxLogger: StructuredLogger,
     useKubearchiveUrl = false,
 ): Promise<KubeConfig | null> => {
     try {
@@ -77,9 +77,9 @@ export const createKubeConfig = async (
 };
 
 export const getOrCreateClient = async (
-    konfluxConfig: KonfluxConfig | undefined,
+    konfluxConfig: KonfluxClusterMap | undefined,
     cluster: string,
-    konfluxLogger: KonfluxLogger,
+    konfluxLogger: StructuredLogger,
     useKubearchiveUrl = false,
 ): Promise<CustomObjectsApi | null> => {
     if (!konfluxConfig) {

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { KonfluxApiError } from '../api/konfluxApi';
+import { BackendApiError } from '../api/backendApi';
 
 /**
  * Watches a Konflux API error and clears tokens for any cluster that returned
@@ -15,7 +15,7 @@ export const useExpireTokensOn401 = (
 ): void => {
     useEffect(() => {
         if (
-            error instanceof KonfluxApiError &&
+            error instanceof BackendApiError &&
             error.statusCode === 401 &&
             error.missingClusters
         ) {

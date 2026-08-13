@@ -2,15 +2,16 @@ import { LoggerService } from '@backstage/backend-plugin-api';
 import {
     GroupVersionKind,
     K8sResourceCommonWithClusterInfo,
-    KonfluxConfig,
+    KonfluxClusterMap,
 } from '@internal/backstage-plugin-konflux-common';
 import uniqBy from 'lodash/uniqBy';
-import { KonfluxLogger } from '../helpers/logger';
+import { StructuredLogger } from '../helpers/logger';
 import {
     createBearerAuthOptions,
     getOrCreateClient,
 } from '../helpers/client-factory';
 import { getHttpStatusCode } from '../helpers/errors';
+import { parseResponseBody, stripManagedFields } from '../helpers/k8s-response';
 import { KubearchiveService } from './kubearchive-service';
 
 export interface FetchOptions {
@@ -35,7 +36,7 @@ export interface FetchContext {
     cluster: string;
     namespace: string;
     token: string;
-    konfluxConfig: KonfluxConfig;
+    konfluxConfig: KonfluxClusterMap;
     resourceModel: GroupVersionKind;
 }
 
@@ -50,11 +51,11 @@ const KUBEARCHIVE_ENABLED_RESOURCES = new Set([
 ]);
 
 export class ResourceFetcherService {
-    private readonly konfluxLogger: KonfluxLogger;
+    private readonly konfluxLogger: StructuredLogger;
     private readonly kubearchiveService: KubearchiveService;
 
     constructor(logger: LoggerService) {
-        this.konfluxLogger = new KonfluxLogger(logger);
+        this.konfluxLogger = new StructuredLogger(logger);
         this.kubearchiveService = new KubearchiveService(logger);
     }
 
@@ -287,42 +288,4 @@ export class ResourceFetcherService {
     hasMoreData(paginationState: SourcePaginationState): boolean {
         return !!(paginationState.k8sToken || paginationState.kubearchiveToken);
     }
-}
-
-function parseResponseBody(data: unknown):
-    | {
-          items: K8sResourceCommonWithClusterInfo[];
-          metadata?: { continue?: string };
-      }
-    | undefined {
-    if (typeof data === 'string') {
-        try {
-            return JSON.parse(data) as {
-                items: K8sResourceCommonWithClusterInfo[];
-                metadata?: { continue?: string };
-            };
-        } catch {
-            return undefined;
-        }
-    }
-    if (typeof data === 'object' && data !== null) {
-        return data as {
-            items: K8sResourceCommonWithClusterInfo[];
-            metadata?: { continue?: string };
-        };
-    }
-    return undefined;
-}
-
-function stripManagedFields(
-    items: K8sResourceCommonWithClusterInfo[],
-): K8sResourceCommonWithClusterInfo[] {
-    return items.map(item => {
-        if (!item.metadata?.managedFields) {
-            return item;
-        }
-        const { managedFields, ...metadata } = item.metadata;
-        void managedFields;
-        return { ...item, metadata };
-    });
 }

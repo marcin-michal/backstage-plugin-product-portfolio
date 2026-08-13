@@ -1,16 +1,17 @@
 import { LoggerService } from '@backstage/backend-plugin-api';
 import {
     K8sResourceCommonWithClusterInfo,
-    KonfluxConfig,
+    KonfluxClusterMap,
 } from '@internal/backstage-plugin-konflux-common';
-import { KonfluxLogger } from '../helpers/logger';
+import { StructuredLogger } from '../helpers/logger';
 import {
     createBearerAuthOptions,
     getOrCreateClient,
 } from '../helpers/client-factory';
+import { parseResponseBody, stripManagedFields } from '../helpers/k8s-response';
 
 interface FetchResourcesOptions {
-    konfluxConfig: KonfluxConfig;
+    konfluxConfig: KonfluxClusterMap;
     token: string;
     cluster: string;
     apiGroup: string;
@@ -26,10 +27,10 @@ interface FetchResourcesOptions {
 }
 
 export class KubearchiveService {
-    private readonly logger: KonfluxLogger;
+    private readonly logger: StructuredLogger;
 
     constructor(logger: LoggerService) {
-        this.logger = new KonfluxLogger(logger);
+        this.logger = new StructuredLogger(logger);
     }
 
     async fetchResources(
@@ -102,40 +103,3 @@ export class KubearchiveService {
     }
 }
 
-function parseResponseBody(data: unknown):
-    | {
-          items: K8sResourceCommonWithClusterInfo[];
-          metadata?: { continue?: string };
-      }
-    | undefined {
-    if (typeof data === 'string') {
-        try {
-            return JSON.parse(data) as {
-                items: K8sResourceCommonWithClusterInfo[];
-                metadata?: { continue?: string };
-            };
-        } catch {
-            return undefined;
-        }
-    }
-    if (typeof data === 'object' && data !== null) {
-        return data as {
-            items: K8sResourceCommonWithClusterInfo[];
-            metadata?: { continue?: string };
-        };
-    }
-    return undefined;
-}
-
-function stripManagedFields(
-    items: K8sResourceCommonWithClusterInfo[],
-): K8sResourceCommonWithClusterInfo[] {
-    return items.map(item => {
-        if (!item.metadata?.managedFields) {
-            return item;
-        }
-        const { managedFields, ...metadata } = item.metadata;
-        void managedFields;
-        return { ...item, metadata };
-    });
-}
