@@ -1,6 +1,8 @@
+import { Fragment, useState } from 'react';
 import {
-    Button,
-    CircularProgress,
+    Collapse,
+    IconButton,
+    Link,
     Table,
     TableBody,
     TableCell,
@@ -8,129 +10,228 @@ import {
     TableRow,
     Typography,
 } from '@material-ui/core';
-import { Alert } from '@material-ui/lab';
+import KeyboardArrowDownIcon from '@material-ui/icons/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@material-ui/icons/KeyboardArrowUp';
+import { EntityRefLink } from '@backstage/plugin-catalog-react';
 import {
-    KonfluxResource,
-    KonfluxResourceBinding,
-    getResourceDisplayName,
+    ClusterPublicInfo,
+    KonfluxAppSummary,
+    KonfluxComponentSummary,
 } from '@internal/backstage-plugin-konflux-common';
-import { KonfluxApiError } from '../../hooks/api/konfluxApi';
+import {
+    clusterDisplayName,
+    clusterUiUrl,
+    getKonfluxUIApplicationUrl,
+    getKonfluxUIComponentUrl,
+} from '../../utils/konfluxUrls';
+import { MatchSourceChip } from './MatchSourceChip';
 import { useCompositionStyles } from './composition.styles';
-import { SnapshotsTable } from './SnapshotsTable';
+
+const NestedComponentsTable = ({
+    components,
+    clusters,
+}: {
+    components: KonfluxComponentSummary[];
+    clusters: ClusterPublicInfo[];
+}) => (
+    <Table size="small">
+        <TableHead>
+            <TableRow>
+                <TableCell>Component</TableCell>
+                <TableCell>Cluster</TableCell>
+                <TableCell>Namespace</TableCell>
+                <TableCell>Source</TableCell>
+                <TableCell>Konflux</TableCell>
+            </TableRow>
+        </TableHead>
+        <TableBody>
+            {components.map(component => {
+                const uiUrl = clusterUiUrl(clusters, component.cluster);
+                const konfluxHref =
+                    uiUrl && component.namespace && component.applicationName
+                        ? getKonfluxUIComponentUrl(
+                              uiUrl,
+                              component.namespace,
+                              component.applicationName,
+                              component.name,
+                          )
+                        : undefined;
+
+                return (
+                    <TableRow key={component.entityRef}>
+                        <TableCell>
+                            <EntityRefLink entityRef={component.entityRef}>
+                                {component.name}
+                            </EntityRefLink>
+                        </TableCell>
+                        <TableCell>
+                            {clusterDisplayName(clusters, component.cluster)}
+                        </TableCell>
+                        <TableCell>{component.namespace}</TableCell>
+                        <TableCell>
+                            <MatchSourceChip source={component.matchSource} />
+                        </TableCell>
+                        <TableCell>
+                            {konfluxHref ? (
+                                <Link
+                                    href={konfluxHref}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    Open in Konflux
+                                </Link>
+                            ) : (
+                                '—'
+                            )}
+                        </TableCell>
+                    </TableRow>
+                );
+            })}
+        </TableBody>
+    </Table>
+);
 
 export interface ApplicationsTableProps {
-    configured: boolean;
-    hasAnyToken: boolean;
-    showSnapshots: boolean;
-    konfluxBindings: KonfluxResourceBinding[];
-    filteredData: KonfluxResource[];
-    resourcesLoading: boolean;
-    resourcesError?: Error;
-    search: string;
-    hasMore: boolean;
-    onLoadMore: () => void;
+    applications: KonfluxAppSummary[];
+    components: KonfluxComponentSummary[];
+    clusters: ClusterPublicInfo[];
 }
 
 export const ApplicationsTable = ({
-    configured,
-    hasAnyToken,
-    showSnapshots,
-    konfluxBindings,
-    filteredData,
-    resourcesLoading,
-    resourcesError,
-    search,
-    hasMore,
-    onLoadMore,
+    applications,
+    components,
+    clusters,
 }: ApplicationsTableProps) => {
     const classes = useCompositionStyles();
+    const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-    if (!configured) {
-        return null;
-    }
+    const toggle = (entityRef: string) => {
+        setExpanded(prev => {
+            const next = new Set(prev);
+            if (next.has(entityRef)) {
+                next.delete(entityRef);
+            } else {
+                next.add(entityRef);
+            }
+            return next;
+        });
+    };
 
-    const title = showSnapshots ? 'Applications (saved snapshots)' : 'Applications';
+    const componentsByApp = (appRef: string) =>
+        components.filter(c => c.applicationEntityRef === appRef);
 
     return (
         <div className={classes.section}>
-            <Typography variant="h6">{title}</Typography>
-
-            {resourcesLoading && hasAnyToken && (
-                <CircularProgress size={24} />
-            )}
-
-            {resourcesError &&
-                !(
-                    resourcesError instanceof KonfluxApiError &&
-                    resourcesError.statusCode === 401
-                ) && (
-                    <Alert severity="error">{resourcesError.message}</Alert>
-                )}
-
-            {!resourcesLoading &&
-                hasAnyToken &&
-                filteredData.length === 0 &&
-                konfluxBindings.length > 0 && (
-                    <Alert severity="info">
-                        No live resources matched the configured bindings
-                        {search ? ` for "${search}"` : ''}.
-                    </Alert>
-                )}
-
-            {filteredData.length > 0 && (
+            <Typography variant="h6">Konflux applications</Typography>
+            {applications.length === 0 ? (
+                <Typography variant="body2" color="textSecondary">
+                    No Konflux applications linked yet.
+                </Typography>
+            ) : (
                 <Table size="small">
                     <TableHead>
                         <TableRow>
-                            <TableCell>Name</TableCell>
-                            <TableCell>Namespace</TableCell>
+                            <TableCell padding="checkbox" />
+                            <TableCell>Application</TableCell>
                             <TableCell>Cluster</TableCell>
-                            <TableCell>Created</TableCell>
+                            <TableCell>Namespace</TableCell>
+                            <TableCell>Components</TableCell>
+                            <TableCell>Source</TableCell>
+                            <TableCell>Konflux</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {filteredData.map(item => {
-                            const rowKey = [
-                                item.cluster?.name,
-                                item.metadata?.namespace,
-                                item.metadata?.uid ?? item.metadata?.name,
-                            ].join(':');
+                        {applications.map(app => {
+                            const nested = componentsByApp(app.entityRef);
+                            const isOpen = expanded.has(app.entityRef);
+                            const uiUrl = clusterUiUrl(clusters, app.cluster);
+                            const displayName = app.title ?? app.name;
+                            const konfluxHref =
+                                uiUrl && app.namespace && app.applicationName
+                                    ? getKonfluxUIApplicationUrl(
+                                          uiUrl,
+                                          app.namespace,
+                                          app.applicationName,
+                                      )
+                                    : undefined;
 
                             return (
-                                <TableRow key={rowKey}>
-                                    <TableCell>
-                                        {getResourceDisplayName(item) ??
-                                            item.metadata?.name}
-                                    </TableCell>
-                                    <TableCell>
-                                        {item.metadata?.namespace}
-                                    </TableCell>
-                                    <TableCell>{item.cluster?.name}</TableCell>
-                                    <TableCell>
-                                        {item.metadata?.creationTimestamp
-                                            ? new Date(
-                                                  item.metadata.creationTimestamp,
-                                              ).toLocaleString()
-                                            : '—'}
-                                    </TableCell>
-                                </TableRow>
+                                <Fragment key={app.entityRef}>
+                                    <TableRow>
+                                        <TableCell padding="checkbox">
+                                            <IconButton
+                                                size="small"
+                                                aria-label={
+                                                    isOpen
+                                                        ? 'Collapse components'
+                                                        : 'Expand components'
+                                                }
+                                                disabled={nested.length === 0}
+                                                onClick={() =>
+                                                    toggle(app.entityRef)
+                                                }
+                                            >
+                                                {isOpen ? (
+                                                    <KeyboardArrowUpIcon />
+                                                ) : (
+                                                    <KeyboardArrowDownIcon />
+                                                )}
+                                            </IconButton>
+                                        </TableCell>
+                                        <TableCell>
+                                            <EntityRefLink
+                                                entityRef={app.entityRef}
+                                            >
+                                                {displayName}
+                                            </EntityRefLink>
+                                        </TableCell>
+                                        <TableCell>
+                                            {clusterDisplayName(
+                                                clusters,
+                                                app.cluster,
+                                            )}
+                                        </TableCell>
+                                        <TableCell>{app.namespace}</TableCell>
+                                        <TableCell>{nested.length}</TableCell>
+                                        <TableCell>
+                                            <MatchSourceChip
+                                                source={app.matchSource}
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            {konfluxHref ? (
+                                                <Link
+                                                    href={konfluxHref}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    Open in Konflux
+                                                </Link>
+                                            ) : (
+                                                '—'
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                    {isOpen && nested.length > 0 && (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={7}
+                                                className={classes.nestedCell}
+                                            >
+                                                <Collapse in={isOpen}>
+                                                    <NestedComponentsTable
+                                                        components={nested}
+                                                        clusters={clusters}
+                                                    />
+                                                </Collapse>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </Fragment>
                             );
                         })}
                     </TableBody>
                 </Table>
-            )}
-
-            {showSnapshots && (
-                <SnapshotsTable konfluxBindings={konfluxBindings} />
-            )}
-
-            {hasMore && hasAnyToken && (
-                <Button
-                    variant="outlined"
-                    onClick={onLoadMore}
-                    disabled={resourcesLoading}
-                >
-                    Load more
-                </Button>
             )}
         </div>
     );

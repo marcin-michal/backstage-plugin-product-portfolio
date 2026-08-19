@@ -80,6 +80,7 @@ export class KonfluxService {
             id,
             name: cluster.name ?? id,
             consoleUrl: cluster.consoleUrl,
+            uiUrl: cluster.uiUrl,
             hasKubearchive: !!cluster.kubearchiveApiUrl,
         }));
     }
@@ -144,7 +145,11 @@ export class KonfluxService {
         const resourceModel = konfluxResourceModels[query.resourceType];
         if (!resourceModel) {
             throw new Error(
-                `Invalid resource type '${query.resourceType}'. Supported: ${Object.keys(konfluxResourceModels).join(', ')}`,
+                `Invalid resource type '${
+                    query.resourceType
+                }'. Supported: ${Object.keys(konfluxResourceModels).join(
+                    ', ',
+                )}`,
             );
         }
 
@@ -232,15 +237,12 @@ export class KonfluxService {
                 // Soft-skip namespaces the user cannot list in, or that do not
                 // expose this CRD — same idea as Konflux only showing usable tenants.
                 if (statusCode === 403 || statusCode === 404) {
-                    this.logger.debug(
-                        'Skipping namespace for resource fetch',
-                        {
-                            cluster: target.cluster,
-                            namespace: target.namespace,
-                            resource: query.resourceType,
-                            statusCode,
-                        },
-                    );
+                    this.logger.debug('Skipping namespace for resource fetch', {
+                        cluster: target.cluster,
+                        namespace: target.namespace,
+                        resource: query.resourceType,
+                        statusCode,
+                    });
                     return;
                 }
 
@@ -405,9 +407,7 @@ function encodeContinuation(payload: ContinuationPayload): string {
     return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
 }
 
-function decodeContinuation(
-    token?: string,
-): ContinuationPayload | undefined {
+function decodeContinuation(token?: string): ContinuationPayload | undefined {
     if (!token) {
         return undefined;
     }

@@ -1,50 +1,59 @@
-import { Button, Typography } from '@material-ui/core';
+import { Button, Chip, Typography } from '@material-ui/core';
 import { useCompositionStyles } from './composition.styles';
 
 export interface CompositionHeaderProps {
     productName: string;
-    configured: boolean;
-    refreshing: boolean;
+    description?: string;
+    source: 'auto' | 'manual';
+    applicationCount: number;
+    componentCount: number;
+    listingCount: number;
+    repositoryCount: number;
     onOpenPicker: () => void;
-    onRefresh: () => void;
 }
 
 export const CompositionHeader = ({
     productName,
-    configured,
-    refreshing,
+    description,
+    source,
+    applicationCount,
+    componentCount,
+    listingCount,
+    repositoryCount,
     onOpenPicker,
-    onRefresh,
 }: CompositionHeaderProps) => {
     const classes = useCompositionStyles();
 
     return (
         <div className={classes.headerRow}>
             <div>
-                <Typography variant="h5">Product composition</Typography>
+                <Typography variant="h5">{productName}</Typography>
+                {description && (
+                    <Typography variant="body2" color="textSecondary">
+                        {description}
+                    </Typography>
+                )}
                 <Typography variant="body2" color="textSecondary">
-                    Konflux Applications and Pyxis listings bound to{' '}
-                    <strong>{productName}</strong>
-                    {configured ? '' : ' — not composed yet'}
+                    {applicationCount} application
+                    {applicationCount === 1 ? '' : 's'}, {componentCount}{' '}
+                    component{componentCount === 1 ? '' : 's'}, {listingCount}{' '}
+                    listing{listingCount === 1 ? '' : 's'}, {repositoryCount}{' '}
+                    repositor{repositoryCount === 1 ? 'y' : 'ies'}
                 </Typography>
             </div>
             <div className={classes.headerActions}>
-                <Button
+                <Chip
+                    size="small"
                     variant="outlined"
+                    label={source === 'manual' ? 'Manual' : 'Auto'}
+                />
+                <Button
+                    variant="contained"
                     color="primary"
                     onClick={onOpenPicker}
                 >
-                    {configured ? 'Edit Composition' : 'Compose Resources'}
+                    Edit composition
                 </Button>
-                {configured && (
-                    <Button
-                        variant="text"
-                        onClick={onRefresh}
-                        disabled={refreshing}
-                    >
-                        {refreshing ? 'Refreshing…' : 'Refresh'}
-                    </Button>
-                )}
             </div>
         </div>
     );

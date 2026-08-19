@@ -24,7 +24,11 @@ export const CreateProductDialog = ({
     onClose,
     onCreated,
 }: CreateProductDialogProps) => {
-    const { createProduct, creating, error: mutationError } = useCreateProduct();
+    const {
+        createProduct,
+        creating,
+        error: mutationError,
+    } = useCreateProduct();
 
     const [name, setName] = useState('');
     const [title, setTitle] = useState('');
@@ -64,8 +68,8 @@ export const CreateProductDialog = ({
             <DialogContent>
                 <DialogContentText>
                     Creates a new Backstage System representing a product. After
-                    creation, open it to compose which Konflux Applications and
-                    Pyxis listings belong to it.
+                    creation you will be taken to its Product tab to add Konflux
+                    applications and Pyxis listings.
                 </DialogContentText>
 
                 {error && (

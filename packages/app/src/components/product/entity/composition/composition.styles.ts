@@ -39,10 +39,9 @@ export const useCompositionStyles = makeStyles(theme => ({
         flexDirection: 'column',
         gap: theme.spacing(1),
     },
-    buttonRow: {
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: theme.spacing(1),
-        marginTop: theme.spacing(1),
+    nestedCell: {
+        paddingBottom: 0,
+        paddingTop: 0,
+        paddingLeft: theme.spacing(6),
     },
 }));

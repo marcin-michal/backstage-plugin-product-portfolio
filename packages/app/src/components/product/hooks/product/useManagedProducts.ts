@@ -1,26 +1,31 @@
 import { useQueryClient } from '@tanstack/react-query';
 import {
-    ManagedProduct,
+    ProductListItem,
     ProductsListResponse,
 } from '@internal/backstage-plugin-konflux-common';
 import { useKonfluxQuery } from '../konflux/useKonfluxQuery';
 
-export const managedProductsQueryKey = [
-    'konflux',
-    'managed-products',
-] as const;
+export const managedProductsQueryKey = ['konflux', 'managed-products'] as const;
 
-/** Products created via this plugin's "Create Product" flow. */
-export const useManagedProducts = (): {
-    products: ManagedProduct[];
+export const useManagedProducts = (options?: {
+    pinned?: boolean;
+    search?: string;
+}): {
+    products: ProductListItem[];
     loading: boolean;
     error?: Error;
     refetch: () => void;
 } => {
     const { data, loading, error, refetch } =
         useKonfluxQuery<ProductsListResponse>(
-            managedProductsQueryKey,
+            [...managedProductsQueryKey, options?.pinned, options?.search],
             '/products',
+            {
+                query: {
+                    pinned: options?.pinned ? 'true' : undefined,
+                    search: options?.search,
+                },
+            },
         );
 
     return { products: data?.products ?? [], loading, error, refetch };

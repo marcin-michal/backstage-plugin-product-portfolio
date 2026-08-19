@@ -24,19 +24,23 @@ export type {
 } from './types';
 
 export type {
-    SavedApplicationSnapshot,
-    KonfluxResourceBinding,
-    PyxisBinding,
-    ProductConfig,
-    ProductConfigWriteRequest,
-} from './product-config';
-
-export type {
     ProductDefinition,
     CreateProductRequest,
-    ManagedProduct,
-    ProductsListResponse,
 } from './product-definition';
+
+export type {
+    ProductListItem,
+    ProductsListResponse,
+    KonfluxAppSummary,
+    KonfluxComponentSummary,
+    PyxisListingSummary,
+    PyxisRepositorySummary,
+    ProductComposition,
+    ManualOverrideType,
+    ManualOverrideItem,
+    SyncStatus,
+    UnmatchedApp,
+} from './product-api';
 
 export {
     ApplicationGVK,
@@ -45,11 +49,6 @@ export {
     konfluxResourceModels,
 } from './models';
 
-export {
-    KONFLUX_TOKENS_HEADER,
-    PAGINATION_CONFIG,
-} from './consts';
+export { KONFLUX_TOKENS_HEADER, PAGINATION_CONFIG } from './consts';
 
-export {
-    getResourceDisplayName,
-} from './resources';
+export { getResourceDisplayName } from './resources';

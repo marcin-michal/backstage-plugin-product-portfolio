@@ -1,5 +1,4 @@
-import { watch, promises as fs } from 'fs';
-import * as path from 'path';
+import { Knex } from 'knex';
 import {
     ANNOTATION_LOCATION,
     ANNOTATION_ORIGIN_LOCATION,
@@ -9,24 +8,32 @@ import {
     EntityProvider,
     EntityProviderConnection,
 } from '@backstage/plugin-catalog-node';
-import { LoggerService } from '@backstage/backend-plugin-api';
-import { ProductDefinition } from '@internal/backstage-plugin-konflux-common';
+import {
+    LoggerService,
+    SchedulerServiceTaskRunner,
+} from '@backstage/backend-plugin-api';
+
+interface ManualProductRow {
+    entity_ref: string;
+    name: string;
+    namespace: string;
+    title: string | null;
+    description: string | null;
+    owner: string;
+}
 
 /**
- * Emits System entities from the shared konflux-products.json file written by
- * the konflux-backend Products API.
+ * Emits System entities for manually created products stored in the konflux
+ * plugin database (`product_systems` where source = 'manual').
  */
 export class ProductEntityProvider implements EntityProvider {
     private connection?: EntityProviderConnection;
-    private readonly filePath: string;
-    private readonly logger: LoggerService;
-    private watcher?: ReturnType<typeof watch>;
-    private refreshTimer?: NodeJS.Timeout;
 
-    constructor(filePath: string, logger: LoggerService) {
-        this.filePath = path.resolve(filePath);
-        this.logger = logger;
-    }
+    constructor(
+        private readonly knex: Knex,
+        private readonly logger: LoggerService,
+        private readonly taskRunner: SchedulerServiceTaskRunner,
+    ) {}
 
     getProviderName(): string {
         return 'konflux-products';
@@ -34,8 +41,12 @@ export class ProductEntityProvider implements EntityProvider {
 
     async connect(connection: EntityProviderConnection): Promise<void> {
         this.connection = connection;
-        await this.run();
-        this.startWatching();
+        await this.taskRunner.run({
+            id: this.getProviderName(),
+            fn: async () => {
+                await this.run();
+            },
+        });
     }
 
     async run(): Promise<void> {
@@ -43,10 +54,18 @@ export class ProductEntityProvider implements EntityProvider {
             return;
         }
 
-        const products = await this.readProducts();
-        const entities = products.map(product =>
-            toSystemEntity(product, this.filePath),
-        );
+        let products: ManualProductRow[];
+        try {
+            products = await this.readManualProducts();
+        } catch (error) {
+            this.logger.error(
+                'Product EntityProvider failed to read product_systems; skipping mutation',
+                error instanceof Error ? error : new Error(String(error)),
+            );
+            return;
+        }
+
+        const entities = products.map(toSystemEntity);
 
         await this.connection.applyMutation({
             type: 'full',
@@ -58,102 +77,37 @@ export class ProductEntityProvider implements EntityProvider {
 
         this.logger.info('Product EntityProvider sync complete', {
             productCount: entities.length,
-            path: this.filePath,
         });
     }
 
-    private startWatching(): void {
-        const scheduleRefresh = () => {
-            if (this.refreshTimer) {
-                clearTimeout(this.refreshTimer);
-            }
-            // Debounce rapid fs events from atomic write (tmp + rename)
-            this.refreshTimer = setTimeout(() => {
-                void this.run().catch(error => {
-                    this.logger.error(
-                        'Product EntityProvider refresh failed',
-                        error instanceof Error
-                            ? error
-                            : new Error(String(error)),
-                    );
-                });
-            }, 300);
-        };
-
-        try {
-            this.watcher = watch(
-                path.dirname(this.filePath),
-                { persistent: true },
-                (_eventType, filename) => {
-                    if (
-                        !filename ||
-                        filename === path.basename(this.filePath) ||
-                        String(filename).startsWith(
-                            path.basename(this.filePath),
-                        )
-                    ) {
-                        scheduleRefresh();
-                    }
-                },
+    private async readManualProducts(): Promise<ManualProductRow[]> {
+        return this.knex<ManualProductRow>('product_systems')
+            .where('source', 'manual')
+            .select(
+                'entity_ref',
+                'name',
+                'namespace',
+                'title',
+                'description',
+                'owner',
             );
-            this.watcher.on('error', error => {
-                this.logger.warn(
-                    `Product EntityProvider file watch error: ${error}`,
-                );
-            });
-        } catch (error) {
-            this.logger.warn(
-                `Could not watch products file; relying on initial sync only: ${error}`,
-            );
-            // Fallback: periodic poll
-            this.refreshTimer = setInterval(() => {
-                void this.run().catch(() => undefined);
-            }, 10_000) as unknown as NodeJS.Timeout;
-        }
-    }
-
-    private async readProducts(): Promise<ProductDefinition[]> {
-        try {
-            const raw = await fs.readFile(this.filePath, 'utf8');
-            const parsed = JSON.parse(raw) as unknown;
-            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-                return [];
-            }
-            return Object.values(parsed as Record<string, ProductDefinition>);
-        } catch (error) {
-            const code =
-                error && typeof error === 'object' && 'code' in error
-                    ? (error as NodeJS.ErrnoException).code
-                    : undefined;
-            if (code === 'ENOENT') {
-                return [];
-            }
-            this.logger.error(
-                'Failed to read products file',
-                error instanceof Error ? error : new Error(String(error)),
-            );
-            return [];
-        }
     }
 }
 
-function toSystemEntity(
-    product: ProductDefinition,
-    filePath: string,
-): Entity {
-    const location = `file:${filePath}`;
+function toSystemEntity(product: ManualProductRow): Entity {
+    const location = `konflux-products:${product.namespace}/${product.name}`;
     return {
         apiVersion: 'backstage.io/v1alpha1',
         kind: 'System',
         metadata: {
             name: product.name,
             namespace: product.namespace,
-            title: product.title,
-            description: product.description,
+            title: product.title ?? undefined,
+            description: product.description ?? undefined,
             annotations: {
                 [ANNOTATION_LOCATION]: location,
                 [ANNOTATION_ORIGIN_LOCATION]: location,
-                'redhat.com/product-source': 'konflux-products',
+                'redhat.com/product-matching-source': 'manual',
             },
         },
         spec: {

@@ -24,23 +24,3 @@ export interface CreateProductRequest {
     namespace?: string;
     owner?: string;
 }
-
-/**
- * A {@link ProductDefinition} enriched with its composition status.
- *
- * `composed` is derived at read-time by joining the product store with the
- * product-config store — it is not persisted alongside the definition — so
- * it lives on this separate response type rather than on
- * {@link ProductDefinition} itself.
- */
-/** @public */
-export interface ManagedProduct extends ProductDefinition {
-    composed: boolean;
-}
-
-/** Response body for `GET /products`. */
-/** @public */
-export interface ProductsListResponse {
-    products: ManagedProduct[];
-    composedEntityRefs: string[];
-}

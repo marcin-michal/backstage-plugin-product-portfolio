@@ -87,4 +87,18 @@ backend.add(
 // Konflux on-demand resource fetching
 backend.add(import('@internal/backstage-plugin-konflux-backend'));
 
+// Konflux entity provider (scheduled sync of Applications, Components, RPAs)
+backend.add(
+    import(
+        '@internal/backstage-plugin-catalog-backend-module-konflux-provider'
+    ),
+);
+
+// Links Pyxis product listings with Konflux Applications via RPA mappings
+backend.add(
+    import(
+        '@internal/backstage-plugin-catalog-backend-module-product-matching'
+    ),
+);
+
 backend.start();

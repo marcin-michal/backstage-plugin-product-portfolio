@@ -85,22 +85,17 @@ export interface KonfluxClusterConfig {
     name?: string;
     apiUrl?: string;
     consoleUrl?: string;
+    /** Konflux UI base URL (for Open-in-Konflux links). */
+    uiUrl?: string;
     kubearchiveApiUrl?: string;
+    serviceToken?: string;
+    /** ReleasePlanAdmissions are in the managed namespaces. */
+    managedNamespaces?: string[];
 }
 
 /** @public */
 export interface KonfluxConfig {
     clusters: Record<string, KonfluxClusterConfig>;
-    /**
-     * Path to the JSON file storing product compositions.
-     * Defaults to `./konflux-product-configs.json` when unset.
-     */
-    productConfigPath?: string;
-    /**
-     * Path to the JSON file storing user-created product System definitions.
-     * Defaults to `./konflux-products.json` when unset.
-     */
-    productsPath?: string;
 }
 
 /** @public */
@@ -108,6 +103,7 @@ export type ClusterPublicInfo = {
     id: string;
     name: string;
     consoleUrl?: string;
+    uiUrl?: string;
     hasKubearchive: boolean;
 };
 

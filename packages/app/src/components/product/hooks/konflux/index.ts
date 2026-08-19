@@ -1,4 +1,9 @@
-export { KonfluxApiError, konfluxRequest, useKonfluxRequest, konfluxRequestOrUndefined } from '../api/konfluxApi';
+export {
+    KonfluxApiError,
+    konfluxRequest,
+    useKonfluxRequest,
+    konfluxRequestOrUndefined,
+} from '../api/konfluxApi';
 export type { KonfluxRequestInit } from '../api/konfluxApi';
 
 export { useKonfluxQuery } from './useKonfluxQuery';
@@ -17,19 +22,10 @@ export { useExpireTokensOn401 } from './useExpireTokensOn401';
 import { createKonfluxResourceListHook } from './useKonfluxResourceList';
 
 /**
- * Fetch the configured Konflux Applications for a product.
- * Scoped to specific cluster/namespace pairs from the product config.
+ * Fetch Konflux Applications on demand (later Konflux live tab).
+ * Scoped to specific cluster/namespace pairs.
  */
 export const useKonfluxApplications = createKonfluxResourceListHook({
     resourceType: 'applications',
     queryKey: ['konflux', 'resources', 'applications'],
-});
-
-/**
- * Browse ALL Applications the user can see across tenant namespaces.
- * Used by the resource picker — intentionally unscoped.
- */
-export const useBrowseApplications = createKonfluxResourceListHook({
-    path: '/browse/applications',
-    queryKey: ['konflux', 'browse-applications'],
 });

@@ -6,8 +6,12 @@ import { EntityContentBlueprint } from '@backstage/plugin-catalog-react/alpha';
 import CategoryIcon from '@material-ui/icons/Category';
 
 /**
- * Product System overview — resource composition (Konflux + Pyxis).
+ * Product System overview — catalog/DB composition (Konflux + Pyxis).
  * Replaces the default catalog Overview for Systems (see app-config filter).
+ *
+ * A later Konflux live tab (path `/konflux`) will mount ClusterAuthBar and
+ * fetch PipelineRuns/Releases on demand. Do not register that tab here until
+ * it has content.
  */
 const productOverviewContent = EntityContentBlueprint.make({
     name: 'product-overview',

@@ -11,7 +11,6 @@ import {
 } from '@material-ui/core';
 import { Alert } from '@material-ui/lab';
 import { Entity, stringifyEntityRef } from '@backstage/catalog-model';
-import { PyxisBinding } from '@internal/backstage-plugin-konflux-common';
 import { useResourcePickerStyles } from './resourcePicker.styles';
 
 export interface PyxisListingsSectionProps {
@@ -21,9 +20,9 @@ export interface PyxisListingsSectionProps {
     filteredPyxis: Entity[];
     pyxisLoading: boolean;
     pyxisError?: Error;
-    selectedPyxis: Map<string, PyxisBinding>;
-    onTogglePyxis: (entity: Entity) => void;
-    onRemovePyxis: (entityRef: string) => void;
+    selected: Set<string>;
+    onToggle: (entityRef: string) => void;
+    onRemove: (entityRef: string) => void;
 }
 
 export const PyxisListingsSection = ({
@@ -33,19 +32,23 @@ export const PyxisListingsSection = ({
     filteredPyxis,
     pyxisLoading,
     pyxisError,
-    selectedPyxis,
-    onTogglePyxis,
-    onRemovePyxis,
+    selected,
+    onToggle,
+    onRemove,
 }: PyxisListingsSectionProps) => {
     const classes = useResourcePickerStyles();
 
+    const labelFor = (entityRef: string): string => {
+        const entity = pyxisEntities.find(
+            e => stringifyEntityRef(e) === entityRef,
+        );
+        return entity?.metadata.title ?? entity?.metadata.name ?? entityRef;
+    };
+
     return (
         <div className={classes.section}>
-            <Typography
-                variant="subtitle1"
-                className={classes.sectionHeader}
-            >
-                Pyxis Product Listings
+            <Typography variant="subtitle1" className={classes.sectionHeader}>
+                Pyxis product listings
             </Typography>
 
             <div className={classes.filters}>
@@ -59,9 +62,7 @@ export const PyxisListingsSection = ({
                 />
             </div>
 
-            {pyxisError && (
-                <Alert severity="error">{pyxisError.message}</Alert>
-            )}
+            {pyxisError && <Alert severity="error">{pyxisError.message}</Alert>}
 
             {pyxisLoading && pyxisEntities.length === 0 && (
                 <CircularProgress size={24} />
@@ -70,16 +71,15 @@ export const PyxisListingsSection = ({
             <List dense className={classes.list}>
                 {filteredPyxis.map(entity => {
                     const entityRef = stringifyEntityRef(entity);
-                    const checked = selectedPyxis.has(entityRef);
-                    const label =
-                        entity.metadata.title ?? entity.metadata.name;
+                    const checked = selected.has(entityRef);
+                    const label = entity.metadata.title ?? entity.metadata.name;
 
                     return (
                         <ListItem
                             key={entityRef}
                             dense
                             button
-                            onClick={() => onTogglePyxis(entity)}
+                            onClick={() => onToggle(entityRef)}
                         >
                             <ListItemIcon>
                                 <Checkbox
@@ -103,16 +103,16 @@ export const PyxisListingsSection = ({
                 )}
             </List>
 
-            {selectedPyxis.size > 0 && (
+            {selected.size > 0 && (
                 <div className={classes.chipRow}>
-                    {Array.from(selectedPyxis.values()).map(binding => (
+                    {[...selected].map(entityRef => (
                         <Chip
-                            key={binding.entityRef}
+                            key={entityRef}
                             size="small"
                             color="primary"
                             variant="outlined"
-                            label={binding.label ?? binding.entityRef}
-                            onDelete={() => onRemovePyxis(binding.entityRef)}
+                            label={labelFor(entityRef)}
+                            onDelete={() => onRemove(entityRef)}
                         />
                     ))}
                 </div>

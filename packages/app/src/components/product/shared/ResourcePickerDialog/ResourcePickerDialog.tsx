@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import {
     Box,
     Button,
@@ -10,150 +11,102 @@ import {
     Typography,
 } from '@material-ui/core';
 import { Alert } from '@material-ui/lab';
-import { Entity, stringifyEntityRef } from '@backstage/catalog-model';
 import {
-    ClusterPublicInfo,
-    KonfluxResource,
-    KonfluxResourceBinding,
-    ProductConfig,
-    PyxisBinding,
+    ManualOverrideItem,
+    ProductComposition,
+    UnmatchedApp,
 } from '@internal/backstage-plugin-konflux-common';
-import {
-    useBrowseApplications,
-    useKonfluxProjects,
-} from '../../hooks/konflux';
-import { ProductConfigSaveInput } from '../../hooks/product/useProductConfig';
+import { useKonfluxClusters } from '../../hooks/konflux';
 import { usePyxisListings } from '../../hooks/catalog/usePyxisListings';
-import {
-    applicationToBinding,
-    konfluxBindingKey,
-} from '../../utils/bindings';
-import {
-    KonfluxAppsSection,
-    NamespaceOption,
-} from './KonfluxAppsSection';
+import { useManualOverride } from '../../hooks/product/useManualOverride';
+import { useUnmatchedApps } from '../../hooks/product/useUnmatchedApps';
+import { KonfluxAppsSection } from './KonfluxAppsSection';
 import { PyxisListingsSection } from './PyxisListingsSection';
-import { clusterLabel } from './resourcePickerLabels';
 import { useResourcePickerStyles } from './resourcePicker.styles';
 
 export interface ResourcePickerDialogProps {
     open: boolean;
     entityName: string;
-    clusters: ClusterPublicInfo[];
-    tokens: Record<string, string>;
-    existingConfig?: ProductConfig;
-    onSave: (bindings: ProductConfigSaveInput) => Promise<void>;
-    onRequestAuth: (clusterId: string) => void;
+    entityRef: string;
+    composition: ProductComposition;
     onClose: () => void;
+    onSaved: () => void;
 }
 
+type PickerApp = UnmatchedApp;
+
 /**
- * Modal for composing which Konflux Applications and Pyxis product listings
- * belong to a product System.
- *
- * Applications are fetched only after a tenant namespace is selected.
+ * Catalog-only modal for adding or removing Konflux applications and Pyxis
+ * product listings. Saves via manual override endpoints.
  */
 export const ResourcePickerDialog = ({
     open,
     entityName,
-    clusters,
-    tokens,
-    existingConfig,
-    onSave,
-    onRequestAuth,
+    entityRef,
+    composition,
     onClose,
+    onSaved,
 }: ResourcePickerDialogProps) => {
     const classes = useResourcePickerStyles();
+    const { data: clusters } = useKonfluxClusters();
+    const { addOverride, removeOverride } = useManualOverride(entityRef);
 
-    const [searchInput, setSearchInput] = useState('');
-    const [search, setSearch] = useState('');
-    const [clusterFilter, setClusterFilter] = useState('');
-    const [selectedNamespace, setSelectedNamespace] =
-        useState<NamespaceOption | null>(null);
+    const [appSearch, setAppSearch] = useState('');
     const [pyxisSearch, setPyxisSearch] = useState('');
-
-    const [selectedKonflux, setSelectedKonflux] = useState<
-        Map<string, KonfluxResourceBinding>
-    >(() => new Map());
-    const [selectedPyxis, setSelectedPyxis] = useState<
-        Map<string, PyxisBinding>
-    >(() => new Map());
-
+    const [selectedApps, setSelectedApps] = useState<Set<string>>(new Set());
+    const [selectedListings, setSelectedListings] = useState<Set<string>>(
+        new Set(),
+    );
     const [saving, setSaving] = useState(false);
     const [saveError, setSaveError] = useState<string>();
 
-    const hasAnyToken = Object.keys(tokens).length > 0;
-    const canBrowseApps = !!selectedNamespace;
-
-    useEffect(() => {
-        if (!open) {
-            return;
-        }
-
-        const konflux = new Map<string, KonfluxResourceBinding>();
-        for (const binding of existingConfig?.konfluxBindings ?? []) {
-            konflux.set(konfluxBindingKey(binding), binding);
-        }
-        setSelectedKonflux(konflux);
-
-        const pyxis = new Map<string, PyxisBinding>();
-        for (const binding of existingConfig?.pyxisBindings ?? []) {
-            pyxis.set(binding.entityRef, binding);
-        }
-        setSelectedPyxis(pyxis);
-
-        setSearchInput('');
-        setSearch('');
-        setClusterFilter('');
-        setSelectedNamespace(null);
-        setPyxisSearch('');
-        setSaveError(undefined);
-    }, [open, existingConfig]);
-
     const {
-        data: projects,
-        loading: projectsLoading,
-        error: projectsError,
-    } = useKonfluxProjects(tokens, open && hasAnyToken);
-
-    const {
-        data: applications,
-        loading: appsLoading,
-        error: appsError,
-        hasMore,
-        loadMore,
-    } = useBrowseApplications(tokens, {
-        enabled: open && hasAnyToken && canBrowseApps,
-        cluster: selectedNamespace?.clusterId,
-        namespace: selectedNamespace?.namespace,
-        search: search || undefined,
-    });
-
+        data: unmatched,
+        loading: unmatchedLoading,
+        error: unmatchedError,
+    } = useUnmatchedApps(open);
     const {
         data: pyxisEntities,
         loading: pyxisLoading,
         error: pyxisError,
     } = usePyxisListings(open);
 
-    const namespaceOptions = useMemo(() => {
-        const opts: NamespaceOption[] = [];
-        for (const [clusterId, nsList] of Object.entries(projects)) {
-            if (clusterFilter && clusterId !== clusterFilter) {
-                continue;
-            }
-            const label = clusterLabel(clusters, clusterId);
-            for (const ns of nsList) {
-                opts.push({
-                    clusterId,
-                    clusterLabel: label,
-                    namespace: ns,
-                    value: `${clusterId}::${ns}`,
-                    label: `${ns} (${label})`,
-                });
+    useEffect(() => {
+        if (!open || saving) {
+            return;
+        }
+        setSelectedApps(
+            new Set(composition.konfluxApplications.map(a => a.entityRef)),
+        );
+        setSelectedListings(
+            new Set(composition.pyxisListings.map(l => l.entityRef)),
+        );
+        setAppSearch('');
+        setPyxisSearch('');
+        setSaveError(undefined);
+    }, [open, composition, saving]);
+
+    const apps: PickerApp[] = useMemo(() => {
+        const byRef = new Map<string, PickerApp>();
+        for (const app of composition.konfluxApplications) {
+            byRef.set(app.entityRef, {
+                entityRef: app.entityRef,
+                name: app.name,
+                title: app.title,
+                cluster: app.cluster,
+                namespace: app.namespace,
+                applicationName: app.applicationName,
+            });
+        }
+        for (const app of unmatched) {
+            if (!byRef.has(app.entityRef)) {
+                byRef.set(app.entityRef, app);
             }
         }
-        return opts.sort((a, b) => a.label.localeCompare(b.label));
-    }, [projects, clusterFilter, clusters]);
+        return [...byRef.values()].sort((a, b) =>
+            (a.title ?? a.name).localeCompare(b.title ?? b.name),
+        );
+    }, [composition.konfluxApplications, unmatched]);
 
     const filteredPyxis = useMemo(() => {
         const term = pyxisSearch.trim().toLowerCase();
@@ -176,51 +129,17 @@ export const ResourcePickerDialog = ({
         });
     }, [pyxisEntities, pyxisSearch]);
 
-    const toggleKonflux = (app: KonfluxResource) => {
-        const binding = applicationToBinding(app);
-        if (!binding) {
-            return;
-        }
-        const key = konfluxBindingKey(binding);
-        setSelectedKonflux(prev => {
-            const next = new Map(prev);
+    const toggleSet = (
+        setter: Dispatch<SetStateAction<Set<string>>>,
+        key: string,
+    ) => {
+        setter(prev => {
+            const next = new Set(prev);
             if (next.has(key)) {
                 next.delete(key);
             } else {
-                next.set(key, binding);
+                next.add(key);
             }
-            return next;
-        });
-    };
-
-    const removeKonflux = (key: string) => {
-        setSelectedKonflux(prev => {
-            const next = new Map(prev);
-            next.delete(key);
-            return next;
-        });
-    };
-
-    const togglePyxis = (entity: Entity) => {
-        const entityRef = stringifyEntityRef(entity);
-        setSelectedPyxis(prev => {
-            const next = new Map(prev);
-            if (next.has(entityRef)) {
-                next.delete(entityRef);
-            } else {
-                next.set(entityRef, {
-                    entityRef,
-                    label: entity.metadata.title ?? entity.metadata.name,
-                });
-            }
-            return next;
-        });
-    };
-
-    const removePyxis = (entityRef: string) => {
-        setSelectedPyxis(prev => {
-            const next = new Map(prev);
-            next.delete(entityRef);
             return next;
         });
     };
@@ -229,11 +148,89 @@ export const ResourcePickerDialog = ({
         setSaving(true);
         setSaveError(undefined);
         try {
-            await onSave({
-                konfluxBindings: Array.from(selectedKonflux.values()),
-                pyxisBindings: Array.from(selectedPyxis.values()),
-            });
-            onClose();
+            const currentApps = new Set(
+                composition.konfluxApplications.map(a => a.entityRef),
+            );
+            const currentListings = new Set(
+                composition.pyxisListings.map(l => l.entityRef),
+            );
+            const appByRef = new Map(
+                composition.konfluxApplications.map(a => [a.entityRef, a]),
+            );
+            const listingByRef = new Map(
+                composition.pyxisListings.map(l => [l.entityRef, l]),
+            );
+
+            const operations: Array<Promise<unknown>> = [];
+
+            for (const ref of selectedApps) {
+                if (!currentApps.has(ref)) {
+                    operations.push(
+                        undoOrAdd(
+                            composition.manualOverrides,
+                            'remove_konflux',
+                            'add_konflux',
+                            ref,
+                            addOverride,
+                            removeOverride,
+                        ),
+                    );
+                }
+            }
+            for (const ref of currentApps) {
+                if (!selectedApps.has(ref)) {
+                    const matchSource = appByRef.get(ref)?.matchSource;
+                    operations.push(
+                        undoOrAdd(
+                            composition.manualOverrides,
+                            matchSource === 'manual'
+                                ? 'add_konflux'
+                                : undefined,
+                            matchSource === 'manual'
+                                ? undefined
+                                : 'remove_konflux',
+                            ref,
+                            addOverride,
+                            removeOverride,
+                        ),
+                    );
+                }
+            }
+
+            for (const ref of selectedListings) {
+                if (!currentListings.has(ref)) {
+                    operations.push(
+                        undoOrAdd(
+                            composition.manualOverrides,
+                            'remove_pyxis',
+                            'add_pyxis',
+                            ref,
+                            addOverride,
+                            removeOverride,
+                        ),
+                    );
+                }
+            }
+            for (const ref of currentListings) {
+                if (!selectedListings.has(ref)) {
+                    const matchSource = listingByRef.get(ref)?.matchSource;
+                    operations.push(
+                        undoOrAdd(
+                            composition.manualOverrides,
+                            matchSource === 'manual' ? 'add_pyxis' : undefined,
+                            matchSource === 'manual'
+                                ? undefined
+                                : 'remove_pyxis',
+                            ref,
+                            addOverride,
+                            removeOverride,
+                        ),
+                    );
+                }
+            }
+
+            await Promise.all(operations);
+            onSaved();
         } catch (e) {
             setSaveError(e instanceof Error ? e.message : String(e));
         } finally {
@@ -243,36 +240,24 @@ export const ResourcePickerDialog = ({
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-            <DialogTitle>Compose resources for {entityName}</DialogTitle>
+            <DialogTitle>Edit composition for {entityName}</DialogTitle>
             <DialogContent dividers>
                 <DialogContentText>
-                    Select which Konflux Applications and Pyxis product listings
-                    belong to this product.
+                    Select which Konflux applications and Pyxis product listings
+                    belong to this product. Repositories are included with their
+                    parent listing.
                 </DialogContentText>
 
                 <KonfluxAppsSection
                     clusters={clusters}
-                    hasAnyToken={hasAnyToken}
-                    canBrowseApps={canBrowseApps}
-                    clusterFilter={clusterFilter}
-                    onClusterFilterChange={setClusterFilter}
-                    namespaceOptions={namespaceOptions}
-                    projectsLoading={projectsLoading}
-                    selectedNamespace={selectedNamespace}
-                    onNamespaceChange={setSelectedNamespace}
-                    searchInput={searchInput}
-                    onSearchInputChange={setSearchInput}
-                    onSearch={() => setSearch(searchInput.trim())}
-                    applications={applications}
-                    appsLoading={appsLoading}
-                    appsError={appsError}
-                    projectsError={projectsError}
-                    hasMore={hasMore}
-                    onLoadMore={loadMore}
-                    selectedKonflux={selectedKonflux}
-                    onToggleKonflux={toggleKonflux}
-                    onRemoveKonflux={removeKonflux}
-                    onRequestAuth={onRequestAuth}
+                    search={appSearch}
+                    onSearchChange={setAppSearch}
+                    apps={apps}
+                    loading={unmatchedLoading}
+                    error={unmatchedError}
+                    selected={selectedApps}
+                    onToggle={ref => toggleSet(setSelectedApps, ref)}
+                    onRemove={ref => toggleSet(setSelectedApps, ref)}
                 />
 
                 <PyxisListingsSection
@@ -282,9 +267,9 @@ export const ResourcePickerDialog = ({
                     filteredPyxis={filteredPyxis}
                     pyxisLoading={pyxisLoading}
                     pyxisError={pyxisError}
-                    selectedPyxis={selectedPyxis}
-                    onTogglePyxis={togglePyxis}
-                    onRemovePyxis={removePyxis}
+                    selected={selectedListings}
+                    onToggle={ref => toggleSet(setSelectedListings, ref)}
+                    onRemove={ref => toggleSet(setSelectedListings, ref)}
                 />
 
                 <Typography
@@ -292,10 +277,10 @@ export const ResourcePickerDialog = ({
                     color="textSecondary"
                     className={classes.summary}
                 >
-                    Selected: {selectedKonflux.size} Konflux app
-                    {selectedKonflux.size === 1 ? '' : 's'},{' '}
-                    {selectedPyxis.size} Pyxis listing
-                    {selectedPyxis.size === 1 ? '' : 's'}
+                    Selected: {selectedApps.size} Konflux app
+                    {selectedApps.size === 1 ? '' : 's'},{' '}
+                    {selectedListings.size} Pyxis listing
+                    {selectedListings.size === 1 ? '' : 's'}
                 </Typography>
 
                 {saveError && (
@@ -311,12 +296,37 @@ export const ResourcePickerDialog = ({
                 <Button
                     color="primary"
                     variant="contained"
-                    onClick={handleSave}
+                    onClick={() => void handleSave()}
                     disabled={saving}
                 >
-                    {saving ? 'Saving…' : 'Save Composition'}
+                    {saving ? 'Saving…' : 'Save composition'}
                 </Button>
             </DialogActions>
         </Dialog>
     );
 };
+
+async function undoOrAdd(
+    overrides: ManualOverrideItem[],
+    deleteType: ManualOverrideItem['overrideType'] | undefined,
+    addType: ManualOverrideItem['overrideType'] | undefined,
+    resourceKey: string,
+    addOverride: (
+        overrideType: ManualOverrideItem['overrideType'],
+        resourceKey: string,
+    ) => Promise<unknown>,
+    removeOverride: (id: string) => Promise<void>,
+): Promise<void> {
+    if (deleteType) {
+        const existing = overrides.find(
+            o => o.overrideType === deleteType && o.resourceKey === resourceKey,
+        );
+        if (existing) {
+            await removeOverride(existing.id);
+            return;
+        }
+    }
+    if (addType) {
+        await addOverride(addType, resourceKey);
+    }
+}

@@ -1,19 +1,14 @@
-import { ClusterPublicInfo, KonfluxResourceBinding } from '@internal/backstage-plugin-konflux-common';
+import { UnmatchedApp } from '@internal/backstage-plugin-konflux-common';
+import { clusterDisplayName } from '../../utils/konfluxUrls';
+import { ClusterPublicInfo } from '@internal/backstage-plugin-konflux-common';
 
-export const clusterLabel = (
-    clusters: ClusterPublicInfo[],
-    clusterId: string,
-): string => {
-    return clusters.find(c => c.id === clusterId)?.name || clusterId;
-};
-
-export const bindingChipLabel = (
-    binding: KonfluxResourceBinding,
+export const appChipLabel = (
+    app: Pick<UnmatchedApp, 'title' | 'name' | 'namespace' | 'cluster'>,
     clusters: ClusterPublicInfo[],
 ): string => {
-    const name = binding.snapshot?.displayName ?? binding.application;
-    return `${name} · ${binding.namespace} (${clusterLabel(
+    const name = app.title ?? app.name;
+    return `${name} · ${app.namespace} (${clusterDisplayName(
         clusters,
-        binding.cluster,
+        app.cluster,
     )})`;
 };

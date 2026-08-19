@@ -5,12 +5,6 @@ import {
 import { Config } from '@backstage/config';
 import { KonfluxLogger } from './logger';
 
-/** Default relative path for the product composition store. */
-export const DEFAULT_PRODUCT_CONFIG_PATH = './konflux-product-configs.json';
-
-/** Default relative path for user-created product System definitions. */
-export const DEFAULT_PRODUCTS_PATH = './konflux-products.json';
-
 /**
  * Parse konflux config from app-config.yaml.
  */
@@ -24,34 +18,32 @@ export function getKonfluxConfig(
             return undefined;
         }
 
-        const productConfigPath =
-            konfluxConfig.getOptionalString('productConfigPath') ??
-            DEFAULT_PRODUCT_CONFIG_PATH;
-        const productsPath =
-            konfluxConfig.getOptionalString('productsPath') ??
-            DEFAULT_PRODUCTS_PATH;
-
         const clustersConfig = konfluxConfig.getOptionalConfig('clusters');
         if (!clustersConfig) {
-            return { clusters: {}, productConfigPath, productsPath };
+            return { clusters: {} };
         }
 
         const clusters: Record<string, KonfluxClusterConfig> = {};
         for (const clusterId of clustersConfig.keys()) {
             const cluster = clustersConfig.getConfig(clusterId);
+            const managedNs =
+                cluster.getOptionalStringArray('managedNamespaces');
             clusters[clusterId] = {
                 name: cluster.getOptionalString('name') ?? clusterId,
                 apiUrl: normalizeUrl(cluster.getOptionalString('apiUrl')),
                 consoleUrl: normalizeUrl(
                     cluster.getOptionalString('consoleUrl'),
                 ),
+                uiUrl: normalizeUrl(cluster.getOptionalString('uiUrl')),
                 kubearchiveApiUrl: normalizeUrl(
                     cluster.getOptionalString('kubearchiveApiUrl'),
                 ),
+                serviceToken: cluster.getOptionalString('serviceToken'),
+                managedNamespaces: managedNs ?? [],
             };
         }
 
-        return { clusters, productConfigPath, productsPath };
+        return { clusters };
     } catch (error) {
         logger.error('Error parsing Konflux configuration', error);
         return undefined;

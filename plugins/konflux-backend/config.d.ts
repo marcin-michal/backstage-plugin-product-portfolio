@@ -1,18 +1,6 @@
 export interface Config {
     /** @visibility frontend */
     konflux?: {
-        /**
-         * Path to the JSON file storing product compositions.
-         * Defaults to `./konflux-product-configs.json` when unset.
-         * @visibility backend
-         */
-        productConfigPath?: string;
-        /**
-         * Path to the JSON file storing user-created product System definitions.
-         * Defaults to `./konflux-products.json` when unset.
-         * @visibility backend
-         */
-        productsPath?: string;
         /** @visibility frontend */
         clusters?: {
             [key: string]: {
@@ -22,8 +10,22 @@ export interface Config {
                 apiUrl?: string;
                 /** OpenShift console URL (for token paste link) @visibility frontend */
                 consoleUrl?: string;
+                /** Konflux UI base URL (for Open-in-Konflux links) @visibility frontend */
+                uiUrl?: string;
                 /** Optional KubeArchive API URL @visibility frontend */
                 kubearchiveApiUrl?: string;
+                /**
+                 * Long-lived service token for this cluster (server-side only).
+                 * Each cluster requires its own token.
+                 * @visibility secret
+                 */
+                serviceToken?: string;
+                /**
+                 * Managed namespaces where ReleasePlanAdmissions live for this
+                 * cluster. Used by KonfluxEntityProvider.
+                 * @visibility backend
+                 */
+                managedNamespaces?: string[];
             };
         };
     };

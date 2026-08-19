@@ -22,8 +22,7 @@ interface CreateKonfluxResourceListHookParams {
     resourceType?: string;
     /**
      * Explicit backend path (overrides `resourceType`).
-     * Use for endpoints that don't follow the `/resources/:type` pattern
-     * (e.g. `/browse/applications`).
+     * Use for endpoints that don't follow the `/resources/:type` pattern.
      */
     path?: string;
     /** TanStack Query key prefix (should be unique per resource type). */

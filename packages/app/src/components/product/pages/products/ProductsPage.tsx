@@ -3,23 +3,31 @@ import {
     Button,
     Chip,
     CircularProgress,
+    FormControlLabel,
+    IconButton,
+    Switch,
     Table,
     TableBody,
     TableCell,
     TableHead,
     TableRow,
     TextField,
+    Tooltip,
     Typography,
 } from '@material-ui/core';
+import BookmarkIcon from '@material-ui/icons/Bookmark';
+import BookmarkBorderIcon from '@material-ui/icons/BookmarkBorder';
 import { Alert } from '@material-ui/lab';
 import { catalogApiRef, entityRouteRef } from '@backstage/plugin-catalog-react';
 import { useApi, useRouteRef } from '@backstage/core-plugin-api';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
-    ManagedProduct,
     ProductDefinition,
+    ProductListItem,
 } from '@internal/backstage-plugin-konflux-common';
 import { useManagedProducts } from '../../hooks/product/useManagedProducts';
+import { usePinProduct } from '../../hooks/product/usePinProduct';
+import { useSyncStatus } from '../../hooks/product/useSyncStatus';
 import { QueryClientBoundary } from '../../shared/QueryClientBoundary';
 import { CreateProductDialog } from './CreateProductDialog';
 import { useProductsStyles } from './products.styles';
@@ -30,17 +38,21 @@ const ProductsPageContent = () => {
     const navigate = useNavigate();
     const entityRoute = useRouteRef(entityRouteRef);
 
+    const [browseAll, setBrowseAll] = useState(false);
+    const [search, setSearch] = useState('');
+    const [createOpen, setCreateOpen] = useState(false);
+    const [localError, setLocalError] = useState<string>();
+
     const {
         products: allProducts,
         loading,
         error,
         refetch,
-    } = useManagedProducts();
-    const [localError, setLocalError] = useState<string>();
-    const [search, setSearch] = useState('');
-    const [createOpen, setCreateOpen] = useState(false);
+    } = useManagedProducts({ pinned: browseAll ? undefined : true });
+    const { data: syncStatus } = useSyncStatus();
+    const { setPinned, pending: pinPending } = usePinProduct();
 
-    const products: ManagedProduct[] = useMemo(() => {
+    const products: ProductListItem[] = useMemo(() => {
         const term = search.trim().toLowerCase();
         return allProducts
             .filter(product => {
@@ -65,8 +77,8 @@ const ProductsPageContent = () => {
 
     const handleCreated = async (product: ProductDefinition) => {
         setCreateOpen(false);
-        for (let i = 0; i < 10; i++) {
-            await new Promise(r => setTimeout(r, 500));
+        for (let i = 0; i < 20; i++) {
+            await new Promise(r => setTimeout(r, 1000));
             try {
                 const entity = await catalogApi.getEntityByRef(
                     product.entityRef,
@@ -77,7 +89,7 @@ const ProductsPageContent = () => {
                         kind: entity.kind,
                         namespace: entity.metadata.namespace ?? 'default',
                     });
-                    navigate(path);
+                    navigate(`${path}/product`);
                     return;
                 }
             } catch {
@@ -90,6 +102,18 @@ const ProductsPageContent = () => {
         );
     };
 
+    const handlePin = async (product: ProductListItem) => {
+        try {
+            await setPinned(product.entityRef, !product.pinned);
+        } catch (e) {
+            setLocalError(e instanceof Error ? e.message : String(e));
+        }
+    };
+
+    const emptyMessage = browseAll
+        ? 'No products found. Create one to get started.'
+        : 'No pinned products. Turn on Browse all to find products and pin the ones you use.';
+
     return (
         <div className={classes.root}>
             <div className={classes.headerRow}>
@@ -97,8 +121,8 @@ const ProductsPageContent = () => {
                     <Typography variant="h4">Products</Typography>
                     <Typography variant="body1" color="textSecondary">
                         Product Systems in the catalog. Create a product, then
-                        open it to compose Konflux Applications and Pyxis
-                        listings on the Product tab.
+                        open its Product tab to add Konflux applications and
+                        Pyxis listings.
                     </Typography>
                 </div>
                 <Button
@@ -119,10 +143,26 @@ const ProductsPageContent = () => {
                     variant="outlined"
                     size="small"
                 />
-                <Button variant="text" onClick={() => refetch()}>
-                    Refresh
-                </Button>
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={browseAll}
+                            onChange={e => setBrowseAll(e.target.checked)}
+                            color="primary"
+                        />
+                    }
+                    label="Browse all"
+                />
             </div>
+
+            {syncStatus && (
+                <Typography variant="caption" color="textSecondary">
+                    Catalog sync: {syncStatus.konfluxApplicationCount} Konflux
+                    applications, {syncStatus.konfluxComponentCount} components,{' '}
+                    {syncStatus.autoDiscoveredProductCount} auto-discovered
+                    products, {syncStatus.manualProductCount} manual products
+                </Typography>
+            )}
 
             {displayError && (
                 <Alert
@@ -136,19 +176,18 @@ const ProductsPageContent = () => {
             {loading && <CircularProgress size={28} />}
 
             {!loading && products.length === 0 && (
-                <Alert severity="info">
-                    No products found. Create one to get started.
-                </Alert>
+                <Alert severity="info">{emptyMessage}</Alert>
             )}
 
             {!loading && products.length > 0 && (
                 <Table size="small">
                     <TableHead>
                         <TableRow>
+                            <TableCell>Pin</TableCell>
                             <TableCell>Product</TableCell>
                             <TableCell>Owner</TableCell>
-                            <TableCell>Composition</TableCell>
-                            <TableCell>Actions</TableCell>
+                            <TableCell>Source</TableCell>
+                            <TableCell />
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -163,6 +202,32 @@ const ProductsPageContent = () => {
                             return (
                                 <TableRow key={product.entityRef}>
                                     <TableCell>
+                                        <Tooltip
+                                            title={
+                                                product.pinned ? 'Unpin' : 'Pin'
+                                            }
+                                        >
+                                            <IconButton
+                                                size="small"
+                                                aria-label={
+                                                    product.pinned
+                                                        ? 'Unpin product'
+                                                        : 'Pin product'
+                                                }
+                                                onClick={() =>
+                                                    void handlePin(product)
+                                                }
+                                                disabled={pinPending}
+                                            >
+                                                {product.pinned ? (
+                                                    <BookmarkIcon fontSize="small" />
+                                                ) : (
+                                                    <BookmarkBorderIcon fontSize="small" />
+                                                )}
+                                            </IconButton>
+                                        </Tooltip>
+                                    </TableCell>
+                                    <TableCell>
                                         <Typography variant="subtitle2">
                                             {title}
                                         </Typography>
@@ -175,35 +240,25 @@ const ProductsPageContent = () => {
                                     </TableCell>
                                     <TableCell>{product.owner}</TableCell>
                                     <TableCell>
-                                        {product.composed ? (
-                                            <Chip
-                                                size="small"
-                                                color="primary"
-                                                label="Composed"
-                                            />
-                                        ) : (
-                                            <Chip
-                                                size="small"
-                                                variant="outlined"
-                                                label="Not composed"
-                                            />
-                                        )}
+                                        <Chip
+                                            size="small"
+                                            variant="outlined"
+                                            label={
+                                                product.source === 'manual'
+                                                    ? 'Manual'
+                                                    : 'Auto'
+                                            }
+                                        />
                                     </TableCell>
                                     <TableCell>
                                         <Button
                                             size="small"
                                             color="primary"
-                                            variant={
-                                                product.composed
-                                                    ? 'outlined'
-                                                    : 'contained'
-                                            }
+                                            variant="outlined"
                                             component={RouterLink}
-                                            to={path}
+                                            to={`${path}/product`}
                                         >
-                                            {product.composed
-                                                ? 'Open'
-                                                : 'Compose'}
+                                            Open
                                         </Button>
                                     </TableCell>
                                 </TableRow>
@@ -223,8 +278,8 @@ const ProductsPageContent = () => {
 };
 
 /**
- * Lists product Systems and lets users create new ones.
- * Composition (Konflux/Pyxis bindings) is done on each product's Product tab.
+ * Lists product Systems and lets users create, pin, and open them.
+ * Composition is edited on each product's Product tab.
  */
 export const ProductsPage = () => {
     return (
