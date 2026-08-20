@@ -18,6 +18,9 @@ import {
     isPyxisObjectId,
 } from './entityHelpers';
 
+/** Cap parallel listing fetches so we do not stampede the Pyxis GraphQL API. */
+const FETCH_CONCURRENCY = 8;
+
 export class PyxisEntityProvider implements EntityProvider {
     private connection?: EntityProviderConnection;
     private readonly client: PyxisClient;
@@ -53,27 +56,23 @@ export class PyxisEntityProvider implements EntityProvider {
         this.logger.info('Starting Pyxis entity sync...');
         const productListings = await this.client.fetchAllProductListings();
         this.logger.info(`Fetched ${productListings.length} product listings`);
-        const repositoryResults = await Promise.all(
-            productListings.map(async listing => {
-                try {
-                    return await this.client.fetchRepositoriesByProductListing(
+        const repositoryById = new Map<string, PyxisContainerRepository>();
+        await mapPool(productListings, FETCH_CONCURRENCY, async listing => {
+            try {
+                const repos =
+                    await this.client.fetchRepositoriesByProductListing(
                         listing._id,
                     );
-                } catch (error) {
-                    this.logger.warn(
-                        `Failed to fetch repositories for product listing ` +
-                            `\`${listing._id}\`, skipping: ${error}`,
-                    );
-                    return [];
+                for (const repo of repos) {
+                    repositoryById.set(repo._id, repo);
                 }
-            }),
-        );
-        const repositoryById = new Map<string, PyxisContainerRepository>();
-        for (const repos of repositoryResults) {
-            for (const repo of repos) {
-                repositoryById.set(repo._id, repo);
+            } catch (error) {
+                this.logger.warn(
+                    `Failed to fetch repositories for product listing ` +
+                        `\`${listing._id}\`, skipping: ${error}`,
+                );
             }
-        }
+        });
         const repositories = Array.from(repositoryById.values());
         this.logger.info(`Fetched ${repositories.length} unique repositories`);
         const rawTeamIds = [
@@ -135,4 +134,30 @@ export class PyxisEntityProvider implements EntityProvider {
                 `${userMap.size} users`,
         );
     }
+}
+
+async function mapPool<T>(
+    items: T[],
+    concurrency: number,
+    worker: (item: T) => Promise<void>,
+): Promise<void> {
+    if (items.length === 0) {
+        return;
+    }
+
+    const limit = Math.max(1, concurrency);
+    let nextIndex = 0;
+
+    const runners = Array.from(
+        { length: Math.min(limit, items.length) },
+        async () => {
+            while (nextIndex < items.length) {
+                const current = items[nextIndex];
+                nextIndex += 1;
+                await worker(current);
+            }
+        },
+    );
+
+    await Promise.all(runners);
 }
