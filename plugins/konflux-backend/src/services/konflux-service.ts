@@ -18,6 +18,7 @@ import { NamespaceDiscoveryService } from './namespace-discovery';
 import {
     ResourceFetcherService,
     SourcePaginationState,
+    resourceUid,
 } from './resource-fetcher';
 
 export type ClusterTokens = Record<string, string>;
@@ -32,6 +33,8 @@ export interface ResourceQuery {
     continue?: string;
     /** Optional pre-filter: only these cluster+namespace pairs */
     namespaceMappings?: Array<{ cluster: string; namespace: string }>;
+    /** Kubernetes label selector applied to live and archive list calls. */
+    labelSelector?: string;
 }
 
 type ContinuationPayload = {
@@ -40,6 +43,8 @@ type ContinuationPayload = {
         namespace: string;
         state: SourcePaginationState;
     }>;
+    /** UIDs already returned (or skipped) from the current unconsumed source pages. */
+    emittedUids?: string[];
 };
 
 type FetchTarget = {
@@ -138,8 +143,8 @@ export class KonfluxService {
     }
 
     /**
-     * Fetch Applications or Components across the user's accessible tenant
-     * namespaces (or entity annotation mappings when present).
+     * Fetch Konflux resources across the user's accessible tenant namespaces
+     * (or explicit namespace mappings when present).
      */
     async fetchResources(query: ResourceQuery): Promise<ResourcesResponse> {
         const resourceModel = konfluxResourceModels[query.resourceType];
@@ -166,8 +171,19 @@ export class KonfluxService {
         const paginationState = decodeContinuation(query.continue);
         const limit = query.limit ?? PAGINATION_CONFIG.DEFAULT_PAGE_SIZE;
         const clusterErrors: ClusterError[] = [];
-        const allItems: KonfluxResource[] = [];
-        const nextSources: ContinuationPayload['sources'] = [];
+        const fetched: Array<{
+            cluster: string;
+            namespace: string;
+            existingState: SourcePaginationState;
+            items: KonfluxResource[];
+            k8sUids: string[];
+            archiveUids: string[];
+            k8sNextToken?: string;
+            archiveNextToken?: string;
+            k8sHasMorePages: boolean;
+            archiveHasMorePages: boolean;
+            archiveAvailable: boolean;
+        }> = [];
 
         await mapPool(targets, FETCH_CONCURRENCY, async target => {
             const existingState =
@@ -177,39 +193,38 @@ export class KonfluxService {
                         s.namespace === target.namespace,
                 )?.state ?? {};
 
-            if (
-                query.continue &&
-                !existingState.k8sToken &&
-                !existingState.kubearchiveToken
-            ) {
-                const wasTracked = paginationState?.sources.some(
-                    s =>
-                        s.cluster === target.cluster &&
-                        s.namespace === target.namespace,
-                );
-                if (wasTracked) {
-                    return;
-                }
+            if (isSourceExhausted(existingState)) {
+                fetched.push({
+                    cluster: target.cluster,
+                    namespace: target.namespace,
+                    existingState,
+                    items: [],
+                    k8sUids: [],
+                    archiveUids: [],
+                    k8sHasMorePages: false,
+                    archiveHasMorePages: false,
+                    archiveAvailable:
+                        existingState.kubearchiveExhausted === false,
+                });
+                return;
             }
 
             try {
-                const { items, newPaginationState } =
-                    await this.resourceFetcher.fetchFromSource(
-                        {
-                            cluster: target.cluster,
-                            namespace: target.namespace,
-                            token: target.token,
-                            konfluxConfig: this.config,
-                            resourceModel,
-                        },
-                        existingState,
-                        {
-                            limit,
-                            fieldSelector: query.search
-                                ? `metadata.name=*${query.search}*`
-                                : undefined,
-                        },
-                    );
+                const page = await this.resourceFetcher.fetchFromSource(
+                    {
+                        cluster: target.cluster,
+                        namespace: target.namespace,
+                        token: target.token,
+                        konfluxConfig: this.config,
+                        resourceModel,
+                    },
+                    existingState,
+                    {
+                        limit,
+                        labelSelector: query.labelSelector,
+                        name: query.search ? `*${query.search}*` : undefined,
+                    },
+                );
 
                 const clusterInfo = {
                     name: target.cluster,
@@ -217,25 +232,25 @@ export class KonfluxService {
                         this.config.clusters[target.cluster]?.consoleUrl,
                 };
 
-                for (const item of items) {
-                    allItems.push({
-                        ...item,
-                        cluster: clusterInfo,
-                    });
-                }
-
-                nextSources.push({
+                fetched.push({
                     cluster: target.cluster,
                     namespace: target.namespace,
-                    state: this.resourceFetcher.hasMoreData(newPaginationState)
-                        ? newPaginationState
-                        : {},
+                    existingState,
+                    items: page.items.map(item => ({
+                        ...item,
+                        cluster: clusterInfo,
+                    })),
+                    k8sUids: page.k8sUids,
+                    archiveUids: page.archiveUids,
+                    k8sNextToken: page.k8sNextToken,
+                    archiveNextToken: page.archiveNextToken,
+                    k8sHasMorePages: page.k8sHasMorePages,
+                    archiveHasMorePages: page.archiveHasMorePages,
+                    archiveAvailable: page.archiveAvailable,
                 });
             } catch (error) {
                 const statusCode = getHttpStatusCode(error);
 
-                // Soft-skip namespaces the user cannot list in, or that do not
-                // expose this CRD — same idea as Konflux only showing usable tenants.
                 if (statusCode === 403 || statusCode === 404) {
                     this.logger.debug('Skipping namespace for resource fetch', {
                         cluster: target.cluster,
@@ -259,32 +274,79 @@ export class KonfluxService {
             }
         });
 
-        let filtered = allItems;
-        if (query.search) {
-            const term = query.search.toLowerCase();
-            filtered = allItems.filter(item => {
-                const name = item.metadata?.name?.toLowerCase() ?? '';
-                const displayName =
-                    getResourceDisplayName(item)?.toLowerCase() ?? '';
-                return name.includes(term) || displayName.includes(term);
-            });
+        const emitted = new Set(paginationState?.emittedUids ?? []);
+        const searchTerm = query.search?.toLowerCase();
+
+        const allItems = fetched.flatMap(entry => entry.items);
+        const uniqueItems = uniqByUid(allItems);
+
+        for (const item of uniqueItems) {
+            if (searchTerm && !matchesSearch(item, searchTerm)) {
+                emitted.add(resourceUid(item));
+            }
         }
 
-        filtered.sort((a, b) => {
-            const aTime = a.metadata?.creationTimestamp ?? '';
-            const bTime = b.metadata?.creationTimestamp ?? '';
-            return bTime.localeCompare(aTime);
-        });
+        const candidates = uniqueItems
+            .filter(item => !emitted.has(resourceUid(item)))
+            .sort((a, b) => {
+                const aTime = a.metadata?.creationTimestamp ?? '';
+                const bTime = b.metadata?.creationTimestamp ?? '';
+                return bTime.localeCompare(aTime);
+            });
 
-        const hasMore = nextSources.some(
-            s => s.state.k8sToken || s.state.kubearchiveToken,
+        const pageItems = candidates.slice(0, limit);
+        for (const item of pageItems) {
+            emitted.add(resourceUid(item));
+        }
+
+        const nextSources: ContinuationPayload['sources'] = fetched.map(
+            entry => ({
+                cluster: entry.cluster,
+                namespace: entry.namespace,
+                state: nextSourceState(entry, emitted),
+            }),
         );
 
+        const heldUids = new Set<string>();
+        for (const entry of fetched) {
+            const state = nextSources.find(
+                s =>
+                    s.cluster === entry.cluster &&
+                    s.namespace === entry.namespace,
+            )?.state;
+            const k8sPageHeld =
+                !!state &&
+                !state.k8sExhausted &&
+                state.k8sToken === entry.existingState.k8sToken;
+            const archivePageHeld =
+                !!state &&
+                !state.kubearchiveExhausted &&
+                state.kubearchiveToken === entry.existingState.kubearchiveToken;
+            if (k8sPageHeld) {
+                for (const uid of entry.k8sUids) {
+                    heldUids.add(uid);
+                }
+            }
+            if (archivePageHeld) {
+                for (const uid of entry.archiveUids) {
+                    heldUids.add(uid);
+                }
+            }
+        }
+
+        const nextEmitted = [...emitted].filter(uid => heldUids.has(uid));
+        const hasMore =
+            candidates.length > limit ||
+            nextSources.some(s => !isSourceExhausted(s.state));
+
         return {
-            data: filtered,
+            data: pageItems,
             clusterErrors,
             continuationToken: hasMore
-                ? encodeContinuation({ sources: nextSources })
+                ? encodeContinuation({
+                      sources: nextSources,
+                      emittedUids: nextEmitted,
+                  })
                 : undefined,
         };
     }
@@ -372,6 +434,83 @@ export class KonfluxService {
 
         return targets;
     }
+}
+
+function isSourceExhausted(state: SourcePaginationState): boolean {
+    return !!state.k8sExhausted && !!state.kubearchiveExhausted;
+}
+
+function nextSourceState(
+    entry: {
+        existingState: SourcePaginationState;
+        k8sUids: string[];
+        archiveUids: string[];
+        k8sNextToken?: string;
+        archiveNextToken?: string;
+        k8sHasMorePages: boolean;
+        archiveHasMorePages: boolean;
+        archiveAvailable: boolean;
+    },
+    emitted: Set<string>,
+): SourcePaginationState {
+    if (isSourceExhausted(entry.existingState)) {
+        return entry.existingState;
+    }
+
+    const k8sPageConsumed =
+        entry.k8sUids.length === 0 ||
+        entry.k8sUids.every(uid => emitted.has(uid));
+    const archivePageConsumed =
+        entry.archiveUids.length === 0 ||
+        entry.archiveUids.every(uid => emitted.has(uid));
+
+    const state: SourcePaginationState = {};
+
+    if (entry.existingState.k8sExhausted) {
+        state.k8sExhausted = true;
+    } else if (k8sPageConsumed) {
+        if (entry.k8sHasMorePages) {
+            state.k8sToken = entry.k8sNextToken;
+        } else {
+            state.k8sExhausted = true;
+        }
+    } else {
+        state.k8sToken = entry.existingState.k8sToken;
+    }
+
+    if (!entry.archiveAvailable || entry.existingState.kubearchiveExhausted) {
+        state.kubearchiveExhausted = true;
+    } else if (archivePageConsumed) {
+        if (entry.archiveHasMorePages) {
+            state.kubearchiveToken = entry.archiveNextToken;
+        } else {
+            state.kubearchiveExhausted = true;
+        }
+    } else {
+        state.kubearchiveToken = entry.existingState.kubearchiveToken;
+    }
+
+    return state;
+}
+
+function uniqByUid(items: KonfluxResource[]): KonfluxResource[] {
+    const seen = new Set<string>();
+    const unique: KonfluxResource[] = [];
+    for (const item of items) {
+        const uid = resourceUid(item);
+        if (seen.has(uid)) {
+            continue;
+        }
+        seen.add(uid);
+        unique.push(item);
+    }
+    return unique;
+}
+
+function matchesSearch(item: KonfluxResource, term: string): boolean {
+    const name = item.metadata?.name?.toLowerCase() ?? '';
+    const displayName = getResourceDisplayName(item)?.toLowerCase() ?? '';
+    return name.includes(term) || displayName.includes(term);
 }
 
 /**

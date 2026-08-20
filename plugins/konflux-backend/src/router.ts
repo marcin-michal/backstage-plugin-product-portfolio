@@ -414,8 +414,8 @@ export async function createRouter(
     });
 
     /**
-     * Fetch Applications or Components.
-     * Query: namespace, cluster, limit, continue, search, namespaces (JSON mappings)
+     * Fetch Konflux resources (applications, components, pipelineruns, releases).
+     * Query: namespace, cluster, limit, continue, search, namespaces (JSON mappings), labelSelector
      */
     router.get('/resources/:resourceType', async (req, res) => {
         await httpAuth.credentials(req, { allow: ['user'] });
@@ -438,6 +438,7 @@ export async function createRouter(
             continue: continueToken,
             search,
             namespaces,
+            labelSelector,
         } = req.query;
 
         try {
@@ -457,6 +458,10 @@ export async function createRouter(
                         ? continueToken
                         : undefined,
                 namespaceMappings: parseNamespacesQuery(namespaces),
+                labelSelector:
+                    typeof labelSelector === 'string'
+                        ? labelSelector
+                        : undefined,
             });
 
             const unauthorized = (result.clusterErrors ?? []).filter(

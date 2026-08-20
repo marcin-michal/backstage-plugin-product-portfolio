@@ -13,6 +13,8 @@ export type {
     K8sResourceCommonWithClusterInfo,
     ApplicationResource,
     ComponentResource,
+    PipelineRunResource,
+    ReleaseResource,
     KonfluxResource,
     KonfluxClusterConfig,
     KonfluxConfig,
@@ -45,10 +47,20 @@ export type {
 export {
     ApplicationGVK,
     ComponentGVK,
+    PipelineRunGVK,
+    ReleaseGVK,
     ModelsPlural,
     konfluxResourceModels,
 } from './models';
 
+export {
+    PipelineRunLabel,
+    buildApplicationLabelSelector,
+} from './pipeline-runs';
+
 export { KONFLUX_TOKENS_HEADER, PAGINATION_CONFIG } from './consts';
 
-export { getResourceDisplayName } from './resources';
+export {
+    getResourceDisplayName,
+    getApplicationFromResource,
+} from './resources';

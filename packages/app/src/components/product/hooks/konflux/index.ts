@@ -22,10 +22,20 @@ export { useExpireTokensOn401 } from './useExpireTokensOn401';
 import { createKonfluxResourceListHook } from './useKonfluxResourceList';
 
 /**
- * Fetch Konflux Applications on demand (later Konflux live tab).
+ * Fetch Konflux Applications on demand.
  * Scoped to specific cluster/namespace pairs.
  */
 export const useKonfluxApplications = createKonfluxResourceListHook({
     resourceType: 'applications',
     queryKey: ['konflux', 'resources', 'applications'],
+});
+
+export const usePipelineRuns = createKonfluxResourceListHook({
+    resourceType: 'pipelineruns',
+    queryKey: ['konflux', 'resources', 'pipelineruns'],
+});
+
+export const useReleases = createKonfluxResourceListHook({
+    resourceType: 'releases',
+    queryKey: ['konflux', 'resources', 'releases'],
 });

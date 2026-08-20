@@ -4,10 +4,7 @@ import {
     KonfluxConfig,
 } from '@internal/backstage-plugin-konflux-common';
 import { KonfluxLogger } from '../helpers/logger';
-import {
-    createBearerAuthOptions,
-    getOrCreateClient,
-} from '../helpers/client-factory';
+import { HttpStatusError } from '../helpers/errors';
 
 interface FetchResourcesOptions {
     konfluxConfig: KonfluxConfig;
@@ -21,10 +18,15 @@ interface FetchResourcesOptions {
         pageSize?: number;
         pageToken?: string;
         labelSelector?: string;
-        fieldSelector?: string;
+        name?: string;
     };
 }
 
+/**
+ * List archived custom resources from KubeArchive using the same path shape
+ * as the Kubernetes API. Query params follow the KubeArchive API (limit,
+ * continue, labelSelector, name) — not Kubernetes fieldSelector.
+ */
 export class KubearchiveService {
     private readonly logger: KonfluxLogger;
 
@@ -32,9 +34,7 @@ export class KubearchiveService {
         this.logger = new KonfluxLogger(logger);
     }
 
-    async fetchResources(
-        params: FetchResourcesOptions,
-    ): Promise<{
+    async fetchResources(params: FetchResourcesOptions): Promise<{
         results: K8sResourceCommonWithClusterInfo[];
         nextPageToken?: string;
     }> {
@@ -49,56 +49,72 @@ export class KubearchiveService {
             options = {},
         } = params;
 
-        try {
-            const customApi = await getOrCreateClient(
-                konfluxConfig,
-                cluster,
-                this.logger,
-                true, // useKubearchiveUrl
+        const baseUrl = konfluxConfig.clusters?.[cluster]?.kubearchiveApiUrl;
+        if (!baseUrl) {
+            throw new Error(
+                `Cluster '${cluster}' not found or missing kubearchiveApiUrl`,
             );
-            if (!customApi) {
-                throw new Error(
-                    `Cluster '${cluster}' not found or missing kubearchiveApiUrl`,
-                );
-            }
-
-            const requestOptions = await createBearerAuthOptions(token);
-            const response =
-                await customApi.listNamespacedCustomObjectWithHttpInfo(
-                    {
-                        group: apiGroup,
-                        version: apiVersion,
-                        namespace,
-                        plural: resource,
-                        _continue: options.pageToken,
-                        labelSelector: options.labelSelector,
-                        fieldSelector: options.fieldSelector,
-                        limit: options.pageSize,
-                    },
-                    requestOptions,
-                );
-
-            const responseBody = parseResponseBody(response?.data);
-            const items = stripManagedFields(responseBody?.items ?? []);
-            const nextPageToken = responseBody?.metadata?.continue;
-
-            this.logger.debug('Fetched items from Kubearchive', {
-                cluster,
-                namespace,
-                resource,
-                itemCount: items.length,
-                hasNextPageToken: !!nextPageToken,
-            });
-
-            return { results: items, nextPageToken };
-        } catch (error) {
-            this.logger.error('Error fetching from Kubearchive', error, {
-                cluster,
-                namespace,
-                resource,
-            });
-            throw error;
         }
+
+        const url = new URL(
+            `${baseUrl.replace(
+                /\/$/,
+                '',
+            )}/apis/${apiGroup}/${apiVersion}/namespaces/${encodeURIComponent(
+                namespace,
+            )}/${resource}`,
+        );
+        if (options.pageSize !== undefined) {
+            url.searchParams.set('limit', String(options.pageSize));
+        }
+        if (options.pageToken) {
+            url.searchParams.set('continue', options.pageToken);
+        }
+        if (options.labelSelector) {
+            url.searchParams.set('labelSelector', options.labelSelector);
+        }
+        if (options.name) {
+            url.searchParams.set('name', options.name);
+        }
+
+        this.logger.debug('Fetching items from Kubearchive', {
+            cluster,
+            namespace,
+            resource,
+            url: url.toString(),
+        });
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            const body = await response.text().catch(() => '');
+            throw new HttpStatusError(
+                `KubeArchive list ${resource} on '${cluster}/${namespace}' failed: HTTP ${
+                    response.status
+                }${body ? `: ${body}` : ''}`,
+                response.status,
+            );
+        }
+
+        const responseBody = parseResponseBody(await response.json());
+        const items = stripManagedFields(responseBody?.items ?? []);
+        const nextPageToken = responseBody?.metadata?.continue;
+
+        this.logger.debug('Fetched items from Kubearchive', {
+            cluster,
+            namespace,
+            resource,
+            itemCount: items.length,
+            hasNextPageToken: !!nextPageToken,
+        });
+
+        return { results: items, nextPageToken };
     }
 }
 

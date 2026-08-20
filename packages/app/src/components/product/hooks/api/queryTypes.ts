@@ -13,8 +13,15 @@ export type AsyncResult<T> = {
     refetch: () => void;
 };
 
+export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
+
 export type PaginatedResult<T> = AsyncResult<T[]> & {
-    hasMore: boolean;
-    loadMore: () => void;
-    isFetchingMore: boolean;
+    page: number;
+    pageSize: number;
+    setPageSize: (size: number) => void;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+    nextPage: () => void;
+    previousPage: () => void;
+    isFetchingPage: boolean;
 };

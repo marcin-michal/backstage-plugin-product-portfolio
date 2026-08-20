@@ -8,10 +8,6 @@ import CategoryIcon from '@material-ui/icons/Category';
 /**
  * Product System overview — catalog/DB composition (Konflux + Pyxis).
  * Replaces the default catalog Overview for Systems (see app-config filter).
- *
- * A later Konflux live tab (path `/konflux`) will mount ClusterAuthBar and
- * fetch PipelineRuns/Releases on demand. Do not register that tab here until
- * it has content.
  */
 const productOverviewContent = EntityContentBlueprint.make({
     name: 'product-overview',
@@ -24,6 +20,25 @@ const productOverviewContent = EntityContentBlueprint.make({
                 '../../components/product/entity/composition/ProductCompositionTab'
             );
             return <ProductCompositionTab />;
+        },
+    },
+});
+
+/**
+ * Live Konflux data for a Product System — PipelineRuns and Releases,
+ * fetched on demand with per-cluster personal tokens.
+ */
+const konfluxLiveContent = EntityContentBlueprint.make({
+    name: 'konflux-live',
+    params: {
+        path: '/konflux',
+        title: 'Konflux',
+        filter: 'kind:system',
+        loader: async () => {
+            const { KonfluxLiveTab } = await import(
+                '../../components/product/entity/live/KonfluxLiveTab'
+            );
+            return <KonfluxLiveTab />;
         },
     },
 });
@@ -48,5 +63,5 @@ const productsPage = PageBlueprint.make({
 
 export const konfluxModule = createFrontendModule({
     pluginId: 'app',
-    extensions: [productOverviewContent, productsPage],
+    extensions: [productOverviewContent, konfluxLiveContent, productsPage],
 });

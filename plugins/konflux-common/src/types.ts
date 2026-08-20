@@ -74,9 +74,23 @@ export type ComponentResource = K8sResourceCommonWithClusterInfo & {
 };
 
 /** @public */
+export type PipelineRunResource = K8sResourceCommonWithClusterInfo & {
+    kind: 'PipelineRun';
+    [key: string]: unknown;
+};
+
+/** @public */
+export type ReleaseResource = K8sResourceCommonWithClusterInfo & {
+    kind: 'Release';
+    [key: string]: unknown;
+};
+
+/** @public */
 export type KonfluxResource =
     | ApplicationResource
     | ComponentResource
+    | PipelineRunResource
+    | ReleaseResource
     | K8sResourceCommonWithClusterInfo;
 
 /** @public */

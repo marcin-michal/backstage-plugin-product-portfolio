@@ -17,8 +17,11 @@ export interface FetchOptions {
     limit?: number;
     labelSelector?: string;
     continue?: string;
-    /** KubeArchive supports wildcard name patterns like *term* */
-    fieldSelector?: string;
+    /**
+     * KubeArchive `name` filter (wildcards like *term*). Live Kubernetes
+     * listing does not receive this — name search is applied client-side.
+     */
+    name?: string;
 }
 
 export interface FetchResult {
@@ -27,8 +30,12 @@ export interface FetchResult {
 }
 
 export interface SourcePaginationState {
+    /** Continue token for the current, not-yet-consumed Kubernetes page. */
     k8sToken?: string;
+    k8sExhausted?: boolean;
+    /** Continue token for the current, not-yet-consumed KubeArchive page. */
     kubearchiveToken?: string;
+    kubearchiveExhausted?: boolean;
 }
 
 export interface FetchContext {
@@ -40,13 +47,16 @@ export interface FetchContext {
 }
 
 /**
- * Applications/Components are rarely archived, but when kubearchiveApiUrl
- * is configured we still attempt a merge so archived CRs are not missed.
- * Additional resource types (pipelineruns, releases) can be added here later.
+ * PipelineRuns and Releases age out of live etcd; Kubearchive is the
+ * historical source. Applications/Components are rarely archived, but when
+ * kubearchiveApiUrl is configured we still attempt a merge so archived CRs
+ * are not missed.
  */
 const KUBEARCHIVE_ENABLED_RESOURCES = new Set([
     'applications',
     'components',
+    'pipelineruns',
+    'releases',
 ]);
 
 export class ResourceFetcherService {
@@ -139,7 +149,7 @@ export class ResourceFetcherService {
         pageSize?: number,
         pageToken?: string,
         labelSelector?: string,
-        fieldSelector?: string,
+        name?: string,
     ): Promise<FetchResult> {
         const { cluster, namespace, token, konfluxConfig, resourceModel } =
             context;
@@ -157,7 +167,7 @@ export class ResourceFetcherService {
                     pageSize,
                     pageToken,
                     labelSelector,
-                    fieldSelector,
+                    name,
                 },
             });
 
@@ -180,8 +190,9 @@ export class ResourceFetcherService {
     }
 
     /**
-     * Fetch from live K8s, then fill from KubeArchive when K8s is exhausted.
-     * Deduplicates by resource UID.
+     * Fetch one Kubernetes page and one KubeArchive page in parallel.
+     * Does not slice to `limit` — the caller merges streams and returns an
+     * exact page so live+archive results are not concatenated into 2× limit.
      */
     async fetchFromSource(
         context: FetchContext,
@@ -189,103 +200,78 @@ export class ResourceFetcherService {
         options?: FetchOptions,
     ): Promise<{
         items: K8sResourceCommonWithClusterInfo[];
-        newPaginationState: SourcePaginationState;
+        k8sUids: string[];
+        archiveUids: string[];
+        k8sNextToken?: string;
+        archiveNextToken?: string;
+        k8sHasMorePages: boolean;
+        archiveHasMorePages: boolean;
+        archiveAvailable: boolean;
     }> {
         const { konfluxConfig, resourceModel } = context;
-        const { k8sToken, kubearchiveToken } = paginationState;
+        const {
+            k8sToken,
+            k8sExhausted,
+            kubearchiveToken,
+            kubearchiveExhausted,
+        } = paginationState;
         const clusterConfig = konfluxConfig.clusters?.[context.cluster];
-        const hasKubearchive = this.hasKubearchive(
+        const archiveAvailable = this.hasKubearchive(
             resourceModel,
             context.namespace,
             clusterConfig,
         );
 
-        if (kubearchiveToken && !k8sToken && hasKubearchive) {
-            const { items, continueToken } = await this.fetchFromKubearchive(
-                context,
-                options?.limit,
-                kubearchiveToken,
-                options?.labelSelector,
-                options?.fieldSelector,
-            );
-            return {
-                items,
-                newPaginationState: continueToken
-                    ? { kubearchiveToken: continueToken }
-                    : {},
-            };
-        }
+        const shouldFetchK8s = !k8sExhausted;
+        const shouldFetchArchive = archiveAvailable && !kubearchiveExhausted;
 
-        const { items: k8sItems, continueToken } =
-            await this.fetchFromKubernetes(context, {
-                ...options,
-                continue: k8sToken,
-            });
+        const [k8sResult, archiveResult] = await Promise.all([
+            shouldFetchK8s
+                ? this.fetchFromKubernetes(context, {
+                      ...options,
+                      continue: k8sToken,
+                  })
+                : Promise.resolve({ items: [], continueToken: undefined }),
+            shouldFetchArchive
+                ? this.fetchFromKubearchive(
+                      context,
+                      options?.limit,
+                      kubearchiveToken,
+                      options?.labelSelector,
+                      options?.name,
+                  ).catch(error => {
+                      this.konfluxLogger.warn(
+                          'KubeArchive fetch failed; returning live results only',
+                          {
+                              cluster: context.cluster,
+                              namespace: context.namespace,
+                              resource: resourceModel.plural,
+                              error:
+                                  error instanceof Error
+                                      ? error.message
+                                      : String(error),
+                          },
+                      );
+                      return { items: [], continueToken: undefined };
+                  })
+                : Promise.resolve({ items: [], continueToken: undefined }),
+        ]);
 
-        if (continueToken) {
-            return {
-                items: k8sItems,
-                newPaginationState: { k8sToken: continueToken },
-            };
-        }
-
-        if (hasKubearchive && !k8sToken) {
-            const limit = options?.limit;
-            const remainingLimit =
-                limit === undefined ? undefined : limit - k8sItems.length;
-
-            if (remainingLimit === undefined || remainingLimit > 0) {
-                try {
-                    const {
-                        items: kubearchiveItems,
-                        continueToken: kaToken,
-                    } = await this.fetchFromKubearchive(
-                        context,
-                        remainingLimit,
-                        undefined,
-                        options?.labelSelector,
-                        options?.fieldSelector,
-                    );
-
-                    if (kubearchiveItems.length > 0) {
-                        const mergedItems = uniqBy(
-                            [...k8sItems, ...kubearchiveItems],
-                            r => r.metadata?.uid ?? r.metadata?.name,
-                        );
-
-                        return {
-                            items: mergedItems,
-                            newPaginationState: kaToken
-                                ? { kubearchiveToken: kaToken }
-                                : {},
-                        };
-                    }
-                } catch (error) {
-                    // KubeArchive failures should not fail the whole request
-                    this.konfluxLogger.warn(
-                        'KubeArchive fetch failed; returning live results only',
-                        {
-                            cluster: context.cluster,
-                            namespace: context.namespace,
-                            resource: resourceModel.plural,
-                            error:
-                                error instanceof Error
-                                    ? error.message
-                                    : String(error),
-                        },
-                    );
-                }
-            }
-        }
+        const items = uniqBy(
+            [...k8sResult.items, ...archiveResult.items],
+            r => r.metadata?.uid ?? r.metadata?.name,
+        );
 
         return {
-            items: k8sItems,
-            newPaginationState: {},
+            items,
+            k8sUids: k8sResult.items.map(resourceUid),
+            archiveUids: archiveResult.items.map(resourceUid),
+            k8sNextToken: k8sResult.continueToken,
+            archiveNextToken: archiveResult.continueToken,
+            k8sHasMorePages: !!k8sResult.continueToken,
+            archiveHasMorePages: !!archiveResult.continueToken,
+            archiveAvailable,
         };
-    }
-
-    hasMoreData(paginationState: SourcePaginationState): boolean {
-        return !!(paginationState.k8sToken || paginationState.kubearchiveToken);
     }
 }
 
@@ -325,4 +311,11 @@ function stripManagedFields(
         void managedFields;
         return { ...item, metadata };
     });
+}
+
+export function resourceUid(item: K8sResourceCommonWithClusterInfo): string {
+    return (
+        item.metadata?.uid ||
+        `${item.metadata?.namespace ?? ''}/${item.metadata?.name ?? ''}`
+    );
 }
